@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-unsigned short int _cidbmsg_strlen(unsigned char * msg, unsigned long int * bytes);
-unsigned long int _cidbmsg_set_strlen(unsigned char * msg, unsigned short int len);
+unsigned short int _cidbmsg_strlen(unsigned char * msg, unsigned int * bytes);
+unsigned int _cidbmsg_set_strlen(unsigned char * msg, unsigned short int len);
 unsigned char * _cidbmsg_read_str(unsigned char * msg, unsigned short int len);
 
 /** @brief Prepares the header for a network message
@@ -14,7 +14,7 @@ unsigned char * _cidbmsg_read_str(unsigned char * msg, unsigned short int len);
  *  @param[in] header The header to be translated
  *  @return The number of bytes written.
  */
-unsigned long int cidbmsg_prepare_header(unsigned char * dst, CIDBMsgHeader * header) {
+unsigned int cidbmsg_prepare_header(unsigned char * dst, CIDBMsgHeader * header) {
   if (!dst) return 0;
   if (!header) {
     memset(dst, 0, CIDBMSG_HEADER_SIZE);
@@ -36,7 +36,7 @@ unsigned long int cidbmsg_prepare_header(unsigned char * dst, CIDBMsgHeader * he
  *  @param[in] src The buffer to read the header from
  *  @return The number of bytes read.
  */
-unsigned long int cidbmsg_read_header(CIDBMsgHeader * header, unsigned char * src) {
+unsigned int cidbmsg_read_header(CIDBMsgHeader * header, unsigned char * src) {
   if (!header) return 0;
   if (!src) {
     memset(header, 0, CIDBMSG_HEADER_SIZE);
@@ -63,7 +63,7 @@ unsigned long int cidbmsg_read_header(CIDBMsgHeader * header, unsigned char * sr
 void cidbmsg_mkmessage(unsigned short int clientid,
                                      unsigned char command, 
                                      unsigned char subcommand, 
-                                     unsigned long int msgid,
+                                     unsigned int msgid,
                                      CIDBMsgHeader * header) {
   header->ClientId = clientid;
   header->msgCommand = command;
@@ -81,12 +81,12 @@ void cidbmsg_mkmessage(unsigned short int clientid,
  *                    be written to.
  *  @return The number of bytes read from the buffer.
  */
-unsigned long int cidbmsg_read_table(unsigned char * msg, CIDBTable * table) {
+unsigned int cidbmsg_read_table(unsigned char * msg, CIDBTable * table) {
   unsigned short int i, j;
   unsigned short int len;
   unsigned short int rowidx;
-  unsigned long int bytes = 0;
-  unsigned long int offset;
+  unsigned int bytes = 0;
+  unsigned int offset;
   if (!msg || !table) {
     return 0;
   }
@@ -126,13 +126,13 @@ unsigned long int cidbmsg_read_table(unsigned char * msg, CIDBTable * table) {
  *  @param[in] table The table to determine the size of
  *  @return The number of bytes required.
  */
-unsigned long int cidbmsg_table_get_size(CIDBTable * table) {
+unsigned int cidbmsg_table_get_size(CIDBTable * table) {
   if (!table) {
     return 0;
   }
   unsigned short int len;
   unsigned short int i, j, rowidx;
-  unsigned long int bytes = 4; /*for row, col */
+  unsigned int bytes = 4; /*for row, col */
   for (j = 0; j < table->ncols; j++) {
     len = strlen((char*)table->column_names[j]);
     len >= 255 ? bytes += 3 : bytes++;
@@ -155,10 +155,10 @@ unsigned long int cidbmsg_table_get_size(CIDBTable * table) {
  *  @return The number of bytes written. This should match exactly the return value
  *          of \ref cidbmsg_table_get_size.
  */
-unsigned long int cidbmsg_write_table(unsigned char * msg, CIDBTable * table) {
+unsigned int cidbmsg_write_table(unsigned char * msg, CIDBTable * table) {
   unsigned short int len;
   unsigned short int i, j, rowidx;
-  unsigned long int bytes = 4;
+  unsigned int bytes = 4;
   
   if (!msg) return 0;
   if (!table) {
@@ -194,8 +194,8 @@ unsigned long int cidbmsg_write_table(unsigned char * msg, CIDBTable * table) {
  *  @param[in] str A Null-terminated string to write to the message buffer.
  *  @return The number of bytes written.
  */ 
-unsigned long int cidbmsg_write_string(unsigned char * msg, unsigned char * str) {
-  unsigned long int bytes = 0;
+unsigned int cidbmsg_write_string(unsigned char * msg, unsigned char * str) {
+  unsigned int bytes = 0;
   unsigned short int len;
   unsigned short int i;
   len = str ? strlen((char*)str) : 0;
@@ -211,10 +211,10 @@ unsigned long int cidbmsg_write_string(unsigned char * msg, unsigned char * str)
  *  @param[out] str Pointer to the location where the new string should be stored.
  *  @return The number of bytes read.
  */
-unsigned long int cidbmsg_read_string(unsigned char * msg, unsigned char ** str) {
+unsigned int cidbmsg_read_string(unsigned char * msg, unsigned char ** str) {
   unsigned short int len;
   unsigned short int i;
-  unsigned long int bytes;
+  unsigned int bytes;
   if (!msg) {
     return 0;
   }
@@ -237,7 +237,7 @@ unsigned long int cidbmsg_read_string(unsigned char * msg, unsigned char ** str)
  *  @param[in] msg Pointer to a message transmission structure.
  *  @return The number of bytes written.
  */
-unsigned long int cidbmsg_transmission_start(unsigned char * part, CIDBMsgTransmission * msg) {
+unsigned int cidbmsg_transmission_start(unsigned char * part, CIDBMsgTransmission * msg) {
   msg->completeMsg->header.partSize = CIDBMSG_DATA_SIZE < msg->completeMsg->header.dataSize ?
                                                      CIDBMSG_DATA_SIZE : msg->completeMsg->header.dataSize;
   msg->completeMsg->header.offset = 0;
@@ -253,7 +253,7 @@ unsigned long int cidbmsg_transmission_start(unsigned char * part, CIDBMsgTransm
  *  @param[in] msg Pointer to a message transmission structure.
  *  @return The number of bytes written.
  */
-unsigned long int cidbmsg_transmission_continue(unsigned char * part, CIDBMsgTransmission * msg) {
+unsigned int cidbmsg_transmission_continue(unsigned char * part, CIDBMsgTransmission * msg) {
   if (msg->completeMsg->header.dataSize <= msg->offset) {
     return 0;
   }
@@ -273,7 +273,7 @@ unsigned long int cidbmsg_transmission_continue(unsigned char * part, CIDBMsgTra
  *  @param[out] bytes The number of bytes required to store the length information.
  *  @return The length of the string, excluding the length information.
  */
-unsigned short int _cidbmsg_strlen(unsigned char * msg, unsigned long int * bytes) {
+unsigned short int _cidbmsg_strlen(unsigned char * msg, unsigned int * bytes) {
   unsigned short int len = CIDB_GET_UCHAR(msg, 0);
   (*bytes) = 1;
   if (len == 255) {
@@ -289,7 +289,7 @@ unsigned short int _cidbmsg_strlen(unsigned char * msg, unsigned long int * byte
  *  @param[in] len Length of the string.
  *  @return The number of bytes used to store the length information.
  */
-unsigned long int _cidbmsg_set_strlen(unsigned char * msg, unsigned short int len) {
+unsigned int _cidbmsg_set_strlen(unsigned char * msg, unsigned short int len) {
   if (len >= 255) {
     CIDB_SET_UCHAR(msg, 0, 0xff);
     CIDB_SET_USHORT(msg, 1, len);
@@ -326,14 +326,14 @@ unsigned char * _cidbmsg_read_str(unsigned char * msg, unsigned short int len) {
  *  @param[out] msg The message buffer information.
  *  @return The size of the data part.
  */
-unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
+unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
   if (!dbmsg || !msg) {
     return 0;
   }
-  unsigned long int size = 0/*CIDBMSG_HEADER_SIZE*/;
+  unsigned int size = 0/*CIDBMSG_HEADER_SIZE*/;
   unsigned short int len;
   unsigned short i;
-  unsigned long int pos;
+  unsigned int pos;
 
   memset(&msg->header, 0, sizeof(CIDBMSG_HEADER_SIZE));
   msg->header.msgCommand = dbmsg->cmd;
@@ -396,7 +396,7 @@ unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
         size += sizeof(unsigned short int);
-        size += sizeof(unsigned long int);
+        size += sizeof(unsigned int);
       }
       else {
         return 0;
@@ -408,7 +408,7 @@ unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
         size += sizeof(unsigned short int);
-        size += sizeof(unsigned long int);
+        size += sizeof(unsigned int);
       }
       else {
         return 0;
@@ -416,7 +416,7 @@ unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_CALL_LIST:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += sizeof(unsigned long int);
+        size += sizeof(unsigned int);
         size += sizeof(unsigned short int);
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
@@ -510,7 +510,7 @@ unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_LISTEN:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += sizeof(unsigned long int);
+        size += sizeof(unsigned int);
       }
       else {
         size += sizeof(unsigned short int);
@@ -685,7 +685,7 @@ unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
  *  @param[out] dbmsg Pointer to an easy to read message structure.
  */
 void cidbmsg_read_message(CIDBMsg * msg, CIDBMessage * dbmsg) {
-  unsigned long int pos;
+  unsigned int pos;
   unsigned short int i;
   if (!dbmsg || !msg) {
     return;

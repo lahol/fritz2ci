@@ -96,7 +96,7 @@ static inline void _cidb_set_ushort(void * dst, int off, unsigned short val) {
   ((unsigned char*)dst)[off+1] = (val >> 8) & 0xff;
 }
 
-static inline void _cidb_set_ulong(void * dst, int off, unsigned long int val) {
+static inline void _cidb_set_ulong(void * dst, int off, unsigned int val) {
   ((unsigned char*)dst)[off  ] = val & 0xff;
   ((unsigned char*)dst)[off+1] = (val >> 8) & 0xff;
   ((unsigned char*)dst)[off+2] = (val >> 16) & 0xff;
@@ -117,11 +117,11 @@ typedef struct _CIDBMsgHeader {
   unsigned short int ClientId;     /**< The client identifier of the connection */
   unsigned char msgCommand;        /**< The command of the message */
   unsigned char msgSubcommand;     /**< The subcommand of the message */
-  unsigned long int msgId;         /**< The message identifier */
+  unsigned int msgId;         /**< The message identifier */
   unsigned short int msgFlags;     /**< The flags concerning the message */
-  unsigned long int dataSize;      /**< The total size of the data */
-  unsigned long int partSize;      /**< The size of the data in the current package */
-  unsigned long int offset;        /**< The offset of the part in the total message */
+  unsigned int dataSize;      /**< The total size of the data */
+  unsigned int partSize;      /**< The size of the data in the current package */
+  unsigned int offset;        /**< The offset of the part in the total message */
 } CIDBMsgHeader;
 
 typedef struct _CIDBMsg {
@@ -131,7 +131,7 @@ typedef struct _CIDBMsg {
 
 typedef struct _CIDBMsgTransmission {
   CIDBMsg * completeMsg;
-  unsigned long int offset;
+  unsigned int offset;
 } CIDBMsgTransmission;
 
 
@@ -168,39 +168,39 @@ typedef struct _CIDBTable {
 typedef struct _CIDBMessage {
   unsigned char cmd;
   unsigned char subcmd;
-  unsigned long int msgid;
+  unsigned int msgid;
   unsigned short int clientid;
   unsigned short int errcode;
   unsigned short int userid;
-  unsigned long int flags;
+  unsigned int flags;
   unsigned short nstrings;
   unsigned char ** stringlist;
   CIDBTable table;
-  unsigned long int index;
-  unsigned long int offset;
+  unsigned int index;
+  unsigned int offset;
   unsigned short int count;
-  unsigned long int mask;
-  unsigned long int maxentries;
+  unsigned int mask;
+  unsigned int maxentries;
 } CIDBMessage;
 
-unsigned long int cidbmsg_prepare_header(unsigned char * dst, CIDBMsgHeader * header);
-unsigned long int cidbmsg_read_header(CIDBMsgHeader * header, unsigned char * src);
-unsigned long int cidbmsg_read_table(unsigned char * msg, CIDBTable * table);
-unsigned long int cidbmsg_table_get_size(CIDBTable * table);
-unsigned long int cidbmsg_write_table(unsigned char * msg, CIDBTable * table);
-unsigned long int cidbmsg_write_string(unsigned char * msg, unsigned char * str);
-unsigned long int cidbmsg_read_string(unsigned char * msg, unsigned char ** str);
+unsigned int cidbmsg_prepare_header(unsigned char * dst, CIDBMsgHeader * header);
+unsigned int cidbmsg_read_header(CIDBMsgHeader * header, unsigned char * src);
+unsigned int cidbmsg_read_table(unsigned char * msg, CIDBTable * table);
+unsigned int cidbmsg_table_get_size(CIDBTable * table);
+unsigned int cidbmsg_write_table(unsigned char * msg, CIDBTable * table);
+unsigned int cidbmsg_write_string(unsigned char * msg, unsigned char * str);
+unsigned int cidbmsg_read_string(unsigned char * msg, unsigned char ** str);
 
-unsigned long int cidbmsg_transmission_start(unsigned char * part, CIDBMsgTransmission * msg);
-unsigned long int cidbmsg_transmission_continue(unsigned char * part, CIDBMsgTransmission * msg);
+unsigned int cidbmsg_transmission_start(unsigned char * part, CIDBMsgTransmission * msg);
+unsigned int cidbmsg_transmission_continue(unsigned char * part, CIDBMsgTransmission * msg);
 
 void cidbmsg_mkmessage(unsigned short int clientid,
                                      unsigned char command, 
                                      unsigned char subcommand, 
-                                     unsigned long int msgid,
+                                     unsigned int msgid,
                                      CIDBMsgHeader * header);
 
-unsigned long int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg * msg);
+unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg * msg);
 void cidbmsg_read_message(CIDBMsg * msg, CIDBMessage * dbmsg);
 
 void cidbmsg_table_free(CIDBTable * table);

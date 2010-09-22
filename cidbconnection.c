@@ -20,7 +20,7 @@
 int cidbcon_send_message(int sock, CIDBMessage * dbmsg) {
   CIDBMsgTransmission tmsg;
   unsigned char buffer[CIDBMSG_MSG_TOTAL_SIZE];
-  unsigned long int bytes;
+  unsigned int bytes;
   tmsg.completeMsg = malloc(sizeof(CIDBMsg));
   cidbmsg_write_message(dbmsg, tmsg.completeMsg);
   
@@ -41,12 +41,12 @@ int cidbcon_send_message(int sock, CIDBMessage * dbmsg) {
  */
 int cidbcon_recv_message(int sock, CIDBMessage * dbmsg) {
   unsigned char buffer[CIDBMSG_MSG_TOTAL_SIZE];
-  unsigned long int bytes;
-  unsigned long int offset;
-  unsigned long int bytes_read = 0;
+  unsigned int bytes;
+  unsigned int offset;
+  unsigned int bytes_read = 0;
   CIDBMsg msg;
   CIDBMsgHeader header;
-  bytes = (unsigned long int)recv(sock, buffer, CIDBMSG_MSG_TOTAL_SIZE, 0);
+  bytes = (unsigned int)recv(sock, buffer, CIDBMSG_MSG_TOTAL_SIZE, 0);
   if (bytes < CIDBMSG_HEADER_SIZE) {
     return 1;
   }
@@ -61,7 +61,7 @@ int cidbcon_recv_message(int sock, CIDBMessage * dbmsg) {
   }
   
   while (bytes_read < msg.header.dataSize) {
-    bytes = (unsigned long int)recv(sock, buffer, CIDBMSG_MSG_TOTAL_SIZE, 0);
+    bytes = (unsigned int)recv(sock, buffer, CIDBMSG_MSG_TOTAL_SIZE, 0);
     if (bytes < CIDBMSG_HEADER_SIZE) {
       return 1;
     }
