@@ -101,9 +101,10 @@ gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *)) {
 }
 
 gint fritz_disconnect(void) {
+  size_t bytes;
   log_log("fritz: disconnect\n");
   if (_cifritz_server.state == CIFritzServerStateListening) {
-    write(_cifritz_server.fdpipe[1], "disconnect", 10);
+    bytes = write(_cifritz_server.fdpipe[1], "disconnect", 10);
      /*pthread_join(_cifritz_server.thread, NULL);*/
      g_thread_join(_cifritz_server.thread);
      close(_cifritz_server.fdpipe[0]);

@@ -2,7 +2,7 @@ LIBDIRS = -L/usr/local/lib `pkg-config --libs glib-2.0 gthread-2.0` `curl-config
 INCDIRS = -I/usr/include `pkg-config --cflags glib-2.0` `curl-config --cflags` `xml2-config --cflags`
 
 CC = gcc
-CFLAGS = -Wall $(COMPILERFLAGS) $(INCDIRS) -g
+CFLAGS = -Wall $(COMPILERFLAGS) $(INCDIRS) -O1
 LIBS = -lc -lpthread -lsqlite3
 
 all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o ./logging.o ./dbhandler.o \

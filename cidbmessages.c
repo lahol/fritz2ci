@@ -309,7 +309,7 @@ unsigned int _cidbmsg_set_strlen(unsigned char * msg, unsigned short int len) {
  */
 unsigned char * _cidbmsg_read_str(unsigned char * msg, unsigned short int len) {
   unsigned short int k;
-  unsigned char * buffer = malloc(sizeof(unsigned char)*(len+1));
+  unsigned char * buffer = malloc(len+1);
   if (!buffer) {
     return NULL;
   }
@@ -331,9 +331,9 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
     return 0;
   }
   unsigned int size = 0/*CIDBMSG_HEADER_SIZE*/;
-  unsigned short int len;
-  unsigned short i;
-  unsigned int pos;
+  unsigned short int len = 0;
+  unsigned short i = 0;
+  unsigned int pos = 0;
 
   memset(&msg->header, 0, sizeof(CIDBMSG_HEADER_SIZE));
   msg->header.msgCommand = dbmsg->cmd;
@@ -347,7 +347,7 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += 2*sizeof(unsigned short int);
+        size += 4; /*2*sizeof(unsigned short int)*/
       }
       else {
         return 0;
@@ -355,8 +355,9 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_CALLER_LIST:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += sizeof(unsigned short int);
-        size += 1;
+        /*size += 2;*/ /*sizeof(unsigned short int);*/
+        /*size += 1;*/
+        size += 3;
         if (dbmsg->stringlist && dbmsg->stringlist[0]) {
           len = strlen((char*)dbmsg->stringlist[0]);
           if (len >= 255) size += 2;
@@ -364,7 +365,7 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
         }
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += sizeof(unsigned short int);
+        size += 2; /*sizeof(unsigned short int);*/
         size += cidbmsg_table_get_size(&dbmsg->table);
       }
       else {
@@ -373,8 +374,9 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_READ_CALLER:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += 2*sizeof(unsigned short int);
-        size += 1;
+        /*size += 4;*/ /*2*sizeof(unsigned short int);*/
+        /*size += 1;*/
+        size += 5;
         if (dbmsg->stringlist && dbmsg->stringlist[0]) {
           len = strlen((char*)dbmsg->stringlist[0]);
           if (len >= 255) size += 2;
@@ -382,7 +384,7 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
         }
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += sizeof(unsigned short int);
+        size += 2; /*sizeof(unsigned short int);*/
         size += cidbmsg_table_get_size(&dbmsg->table);
       }
       else {
@@ -391,12 +393,13 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_WRITE_CALLER:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += 2*sizeof(unsigned short int);
+        size += 4; /*2*sizeof(unsigned short int);*/
         size += cidbmsg_table_get_size(&dbmsg->table);
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += sizeof(unsigned short int);
-        size += sizeof(unsigned int);
+        /*size += 2;*/ /*sizeof(unsigned short int);*/
+        /*size += 4; *//*sizeof(unsigned int);*/
+        size += 6;
       }
       else {
         return 0;
@@ -407,8 +410,9 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
         size += cidbmsg_table_get_size(&dbmsg->table);
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += sizeof(unsigned short int);
-        size += sizeof(unsigned int);
+        /*size += 2; *//*sizeof(unsigned short int);*/
+        /*size += 4; *//*sizeof(unsigned int);*/
+        size += 6;
       }
       else {
         return 0;
@@ -416,11 +420,12 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_CALL_LIST:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += sizeof(unsigned int);
-        size += sizeof(unsigned short int);
+        /*size += sizeof(unsigned int);
+        size += sizeof(unsigned short int);*/
+        size += 6;
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += sizeof(unsigned short int);
+        size += 2; /*sizeof(unsigned short int);*/
         size += cidbmsg_table_get_size(&dbmsg->table);
       }
       else {
@@ -431,7 +436,8 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += 2*sizeof(unsigned short int);
+        /*size += 2*sizeof(unsigned short int);*/
+        size += 4;
         if (dbmsg->stringlist) {
           for (i = 0; i < dbmsg->nstrings; i++) {
             size += 1;
@@ -492,7 +498,7 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
         }
       }
       else if (dbmsg->subcmd == CIDBMSG_SUBCMD_RESP) {
-        size += 2*sizeof(unsigned short int);
+        size += 4; /*2*sizeof(unsigned short int);*/
         if (dbmsg->stringlist) {
           for (i = 0; i < dbmsg->nstrings; i++) {
             size += 1;
@@ -510,17 +516,17 @@ unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg* msg) {
       break;
     case CIDBMSG_CMD_LISTEN:
       if (dbmsg->subcmd == CIDBMSG_SUBCMD_QUERY) {
-        size += sizeof(unsigned int);
+        size += 4; /*sizeof(unsigned int);*/
       }
       else {
-        size += sizeof(unsigned short int);
+        size += 2; /*sizeof(unsigned short int);*/
       }
       break; 
     default: return 0;
   }
   
   /* set header information */
-  memset(&msg->header, 0, sizeof(CIDBMSG_HEADER_SIZE));
+  memset(&msg->header, 0, CIDBMSG_HEADER_SIZE);
   msg->header.msgCommand = dbmsg->cmd;
   msg->header.msgSubcommand = dbmsg->subcmd;
   msg->header.ClientId = dbmsg->clientid;

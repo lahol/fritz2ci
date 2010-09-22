@@ -198,9 +198,10 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet * data) {
 gint cisrv_disconnect(void) {
   log_log("cisrv_disconnect\n");
   int bval;
+  size_t bytes;
   switch (_cisrv_server.state) {
     case CISrvStateRunning:
-      write(_cisrv_server.fdpipe[1], "disconnect", 10);
+      bytes = write(_cisrv_server.fdpipe[1], "disconnect", 10);
       /*pthread_join(_cisrv_server.serverthread, NULL);*/
       g_thread_join(_cisrv_server.serverthread);
       close(_cisrv_server.fdpipe[0]);
