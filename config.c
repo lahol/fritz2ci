@@ -10,8 +10,8 @@ static Fritz2CIConfig _config;
 gint config_load(gchar * conffile) {
   GKeyFile * kf = g_key_file_new();
   if (!conffile) {
-    _config.conf_file = g_strdup("/etc/fritz2ci.conf");
-    conffile = _config.conf_file;
+    _config.configfile = g_strdup("/etc/fritz2ci.conf");
+    conffile = _config.configfile;
   }
   if (!g_key_file_load_from_file(kf, conffile, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL)) {
     log_log("could not read config file, setting defaults\n");
