@@ -32,3 +32,4 @@ install:
 	cp ./bin/fritz2ci /usr/local/bin
 	cp fritz2ci-base.conf /etc/fritz2ci.conf
 	cp ./share/* /usr/share/callerinfo
+	cp ./bin/scripts/fritz2ci.conf /etc/init
