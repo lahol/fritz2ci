@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<cirevlookupsources>
+  <source id="1">
+    <description>Das Örtliche</description>
+    <query linehandling="split">http://www1.dasoertliche.de/Controller?form_name=search_inv&amp;ph=%NUMBER%</query>
+    <pattern expression='\s*na\s*:\s*\"(.+)\".*'>
+      <field pos="1">FIELD_NAME</field>
+    </pattern>
+    <pattern expression='\s*pc\s*:\s*\"(.+)\".*'>
+      <field pos="1">FIELD_POSTALCODE</field>
+    </pattern>
+    <pattern expression='\s*ci\s*:\s*\"(.+)\".*'>
+      <field pos="1">FIELD_CITY</field>
+    </pattern>
+    <pattern expression='\s*st\s*:\s*\"(.+)\".*'>
+      <field pos="1">FIELD_STREET</field>
+    </pattern>
+  </source>
+</cirevlookupsources>

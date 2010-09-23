@@ -25,3 +25,10 @@ all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o .
 
 clean:
 	rm *.o
+	
+install:
+	mkdir -p /var/callerinfo
+	mkdir -p /usr/share/callerinfo
+	cp ./bin/fritz2ci /usr/local/bin
+	cp fritz2ci-base.conf /etc/fritz2ci.conf
+	cp ./share/* /usr/share/callerinfo

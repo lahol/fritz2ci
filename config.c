@@ -9,7 +9,11 @@ static Fritz2CIConfig _config;
 
 gint config_load(gchar * conffile) {
   GKeyFile * kf = g_key_file_new();
-  if (!conffile || !g_key_file_load_from_file(kf, conffile, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL)) {
+  if (!conffile) {
+    _config.conf_file = g_strdup("/etc/fritz2ci.conf");
+    conffile = _config.conf_file;
+  }
+  if (!g_key_file_load_from_file(kf, conffile, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL)) {
     log_log("could not read config file, setting defaults\n");
     _config.fritz_host = g_strdup("127.0.0.1");
     _config.fritz_port = 1012;
