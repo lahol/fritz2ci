@@ -49,6 +49,7 @@ gint dbhandler_connect(gchar * host, gushort port) {
   srv.sin_family = AF_INET;
   
   if (connect(_db_sock, (struct sockaddr*)&srv, sizeof(srv)) == -1) {
+    log_log("connect failed\n");
     return 2;
   }
   _db_state = CIDBHandlerStateConnected;

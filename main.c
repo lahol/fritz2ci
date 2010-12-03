@@ -221,6 +221,7 @@ void handle_fritz_message(CIFritzCallMsg * cmsg) {
     g_static_mutex_lock(&_db_data_queue_lock);
     if (g_queue_is_empty(_db_data_todo)) {
       if ((dbrc = dbhandler_add_data(&set)) != 0) { /* send or receive failed, init reconnect */
+        log_log("add data failed\n");
         const Fritz2CIConfig * cfg = config_get_config();
         todo = g_malloc0(sizeof(CIDataSet));
         memcpy(todo, &set, sizeof(CIDataSet));
