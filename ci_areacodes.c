@@ -144,7 +144,7 @@ int ci_get_area_code(char * numComplete, char * numAreaCode, char * numNumber, c
         fclose(f);
         return 0;
       }
-      else if (g_ascii_digit_value(buffer[i]) > g_ascii_digit_value(buffer[i])) {
+      else if (g_ascii_digit_value(buffer[i]) > g_ascii_digit_value(numComplete[i])) {
         /* not found */
         strcpy(numAreaCode, _("<unknown>"));
         fclose(f);
