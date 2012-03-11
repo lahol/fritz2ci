@@ -181,6 +181,7 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet * data) {
     case CI2ServerMsgMessage: cmsg.msgCode = 'm'; break;
     case CI2ServerMsgUpdate: cmsg.msgCode = 'u'; break;
     case CI2ServerMsgDisconnect: cmsg.msgCode = 'd'; break;
+    case CI2ServerMsgComplete: cmsg.msgCode = 'c'; break;
     default: return 1;
   }
 /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/

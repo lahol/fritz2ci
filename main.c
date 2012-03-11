@@ -238,6 +238,7 @@ void handle_fritz_message(CIFritzCallMsg * cmsg) {
     if (rc == 0) {
       cisrv_broadcast_message(CI2ServerMsgUpdate, &set);
     }
+    cisrv_broadcast_message(CI2ServerMsgComplete, &set);
   }
 }
 
