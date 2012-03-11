@@ -7,7 +7,8 @@
 typedef enum {
   CI2ServerMsgMessage,
   CI2ServerMsgUpdate,
-  CI2ServerMsgDisconnect
+  CI2ServerMsgDisconnect,
+  CI2ServerMsgComplete
 } CI2ServerMsg;
 
 gint cisrv_init(void);
