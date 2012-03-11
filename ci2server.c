@@ -257,6 +257,7 @@ void _cisrv_remove_marked_clients(void) {
 
 void _cisrv_add_client(int sock) {
   CIClient * cl = g_malloc0(sizeof(CIClient));
+  log_log("cisrv_add_client\n");
   cl->sock = sock;
 /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
   g_mutex_lock(_cisrv_server.clist_lock);
@@ -267,6 +268,7 @@ void _cisrv_add_client(int sock) {
 
 void _cisrv_remove_client(int sock) {
   GSList * tmp;
+  log_log("cisrv_remove_client\n");
   g_mutex_lock(_cisrv_server.clist_lock);
 /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
   tmp = _cisrv_server.clientlist;

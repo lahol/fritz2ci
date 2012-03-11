@@ -249,7 +249,7 @@ void backup_data_write(CIDataSet * set) {
     return;
   }
   if ((f = fopen(cfg->data_backup_location, "a")) == NULL) {
-    log_log("Error opening backup file\n");
+    log_log("Error opening backup file `%s'\n", cfg->data_backup_location);
     return;
   }
   fprintf(f, "%s§\"%s\"§\"%s\"§\"%s\"§%s§\"%s\"§\"%s\"§%s\n", set->cidsNumberComplete,
