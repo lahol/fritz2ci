@@ -147,6 +147,7 @@ void * _fritz_listen_thread_proc(void * pdata) {
     FD_SET(_cifritz_server.fdpipe[0], &rfds);
     
     if (select(max, &rfds, NULL, NULL, NULL) < 0) {
+      log_log("select returned negative value, terminating thread\n");
       return NULL;
     }
     
@@ -169,10 +170,12 @@ void * _fritz_listen_thread_proc(void * pdata) {
     }
     
     if (FD_ISSET(_cifritz_server.fdpipe[0], &rfds)) {
+      log_log("received terminating signal\n");
       return NULL;
     }
   }
   _cifritz_server.state = CIFritzServerStateConnected;
+  log_log("No file descriptor set -- returning\n");
   return NULL;
 }
 
