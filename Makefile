@@ -5,6 +5,10 @@ CC = gcc
 CFLAGS = -Wall $(COMPILERFLAGS) $(INCDIRS) -O1
 LIBS = -lc -lpthread -lsqlite3
 
+ifndef PREFIX
+	PREFIX=/usr/local
+endif
+
 all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o ./logging.o ./dbhandler.o \
 	./cidbmessages.o ./cidbconnection.o ./lookup.o ./msn_lookup.o
 	mkdir -p ./bin
@@ -29,7 +33,7 @@ clean:
 install:
 	mkdir -p /var/callerinfo
 	mkdir -p /usr/share/callerinfo
-	cp ./bin/fritz2ci /usr/local/bin
+	install ./bin/fritz2ci ${PREFIX}/bin
 #	cp fritz2ci-base.conf /etc/fritz2ci.conf
 #	cp ./share/* /usr/share/callerinfo
 #	cp ./bin/scripts/fritz2ci.conf /etc/init
