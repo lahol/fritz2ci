@@ -184,15 +184,14 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet * data) {
     case CI2ServerMsgComplete: cmsg.msgCode = 'c'; break;
     default: return 1;
   }
-/*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
   g_mutex_lock(_cisrv_server.clist_lock);
   tmp = _cisrv_server.clientlist;
   while (tmp) {
+    log_log("broadcast to %p\n", tmp);
     send(((CIClient*)(tmp->data))->sock, &cmsg, sizeof(CINetMessage), 0);
     tmp = g_slist_next(tmp);
   }
   g_mutex_unlock(_cisrv_server.clist_lock);
-/*  pthread_mutex_unlock(&_cisrv_server.clist_lock);*/
   return 0;
 }
 
@@ -202,16 +201,22 @@ gint cisrv_disconnect(void) {
   size_t bytes;
   switch (_cisrv_server.state) {
     case CISrvStateRunning:
+      log_log("write to pipe\n");
         bytes = write(_cisrv_server.fdpipe[1], "disconnect", 10);
         if (bytes != 10) {
           log_log("Error writing to pipe.\n");
         }
-        g_thread_join(_cisrv_server.serverthread);
+        if (_cisrv_server.serverthread) {
+          log_log("cisrv: join: %p\n", _cisrv_server.serverthread);
+          g_thread_join(_cisrv_server.serverthread);
+          _cisrv_server.serverthread = NULL;
+          log_log("joined\n");
+        }
         close(_cisrv_server.fdpipe[0]);
         close(_cisrv_server.fdpipe[1]);
-        _cisrv_server.serverthread = NULL/*-1*/;
         _cisrv_server.state = CISrvStateConnected;
     case CISrvStateConnected:
+      log_log("broadcast message\n");
       cisrv_broadcast_message(CI2ServerMsgDisconnect, NULL);
       _cisrv_server.state = CISrvStateInitialized;
     case CISrvStateInitialized:
@@ -219,17 +224,18 @@ gint cisrv_disconnect(void) {
   }
   if (_cisrv_server.state != CISrvStateUninitialized) {
     _cisrv_server.state = CISrvStateInitialized;
+    log_log("close all clients\n");
     _cisrv_close_all_clients();
     bval = 1;
     setsockopt(_cisrv_server.sock, SOL_SOCKET, SO_REUSEADDR, &bval, sizeof(int));
     close(_cisrv_server.sock);
     _cisrv_server.sock = -1;
   }
+  log_log("cisrv_disconnect done\n");
   return 0;
 }
 
 void _cisrv_close_all_clients(void) {
-/*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
   g_mutex_lock(_cisrv_server.clist_lock);
   while (_cisrv_server.clientlist) {
     close(((CIClient*)_cisrv_server.clientlist->data)->sock);
@@ -237,7 +243,6 @@ void _cisrv_close_all_clients(void) {
     _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, _cisrv_server.clientlist->data);
   }
   g_mutex_unlock(_cisrv_server.clist_lock);
-/*  pthread_mutex_unlock(&_cisrv_server.clist_lock);*/
 }
 
 void _cisrv_remove_marked_clients(void) {

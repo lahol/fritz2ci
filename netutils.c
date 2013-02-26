@@ -3,6 +3,7 @@
 #include <linux/rtnetlink.h>
 #include <net/if.h>
 #include <memory.h>
+#include "logging.h"
 
 in_addr_t netutil_get_ip_address(const gchar * hostname)
 {
@@ -45,6 +46,7 @@ int netutil_init_netlink(void)
 
 gboolean netutil_connection_lost(int nlsock)
 {
+  log_log("check connection lost\n");
   char buffer[4096];
   int len;
   struct nlmsghdr *nlh;
@@ -53,7 +55,12 @@ gboolean netutil_connection_lost(int nlsock)
 
   if ((len = recv(nlsock, nlh, 4096, 0)) >= 1) {
     while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
-      if (nlh->nlmsg_type == RTM_DELADDR) { /* RTM_DELLINK */
+      if (nlh->nlmsg_type == RTM_DELADDR) {
+        log_log("RTM_DELADDR\n");
+        return TRUE;
+      }
+      if (nlh->nlmsg_type == RTM_DELLINK) {
+        log_log("RTM_DELLINK\n");
         return TRUE;
       }
       nlh = NLMSG_NEXT(nlh, len);

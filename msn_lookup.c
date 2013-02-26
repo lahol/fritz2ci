@@ -56,6 +56,7 @@ gint msnl_lookup(gchar * msn, gchar * alias) {
 }
 
 void msnl_cleanup(void) {
+  log_log("msnl_cleanup: %p\n", _msn_list);
   while (_msn_list) {
     g_free((MSN_Lookup*)_msn_list->data);
     _msn_list = g_slist_remove(_msn_list, _msn_list->data);

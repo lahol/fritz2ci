@@ -70,13 +70,15 @@ int main(int argc, char ** argv) {
   
   if (fritz_init((gchar*)cfg->fritz_host, cfg->fritz_port) != 0) {
     fprintf(stderr, "Could not initialize fritz\n");
+    _shutdown();
+    return 1;
   }
   else {
     log_log("initialized fritz\n");
   }
   if (cisrv_init() != 0) {
-    config_free();
     fprintf(stderr, "Could not initialize ci2server\n");
+    _shutdown();
     return 1;
   }
   log_log("initialized cisrv\n");
@@ -88,15 +90,16 @@ int main(int argc, char ** argv) {
     log_log("initialized dbhandler\n");
   }
   if (lookup_init(cfg->lookup_sources_location, cfg->cache_location) != 0) {
-    config_free();
     fprintf(stderr, "Could not initialize lookup\n");
+    _shutdown();
     return 1;
   }
   log_log("initialized lookup\n");
   
   if (msnl_read_file(cfg->msn_lookup_location) != 0) {
-    config_free();
+    _shutdown();
     fprintf(stderr, "Could not open msn lookup file\n");
+    return 1;
   }
   log_log("loaded msn lookup file\n");
   
@@ -108,6 +111,7 @@ int main(int argc, char ** argv) {
   }
   
   if (cisrv_run(cfg->ci2_port) != 0) {
+    log_log("call shutdown after failed cisrv_run\n");
     _shutdown();
     return 1;
   }
@@ -129,6 +133,7 @@ int main(int argc, char ** argv) {
   
   ci_init_area_codes();
   if (ci_read_area_codes_from_file(cfg->areacodes_location) != 0) {
+    log_log("call shutdown after failed ci_read_area_codes_from_file\n");
     _shutdown();
     return 1;
   }
@@ -143,6 +148,7 @@ int main(int argc, char ** argv) {
   sigaction(SIGTERM, &_sgn, NULL);
   
   g_main_loop_run(mainloop);
+  log_log("terminating, call shutdown\n");
   _shutdown();
   return 0;
 }
@@ -155,11 +161,17 @@ void _shutdown(void) {
   cisrv_disconnect();
 
   msnl_cleanup();
+  log_log("fritz_cleanup\n");
   fritz_cleanup();
+  log_log("dbhandler cleanup\n");
   dbhandler_cleanup();
+  log_log("cisrv cleanup\n");
   cisrv_cleanup();
+  log_log("lookup cleanup\n");
   lookup_cleanup();
+  log_log("config free\n");
   config_free();
+  log_log("remove todo\n");
   int cnt = 0;
   CIDataSet * set;
   while ((set = g_queue_pop_head(_db_data_todo)) != NULL) {
@@ -170,6 +182,7 @@ void _shutdown(void) {
   if (cnt) {
     log_log("There were %d sets not written to database\n", cnt);
   }
+  log_log("done with shutdown\n");
 }
 
 void _handle_signal(int signum) {

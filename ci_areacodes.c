@@ -14,6 +14,7 @@
 #define _(string) (string)
 
 #include "ci_areacodes.h"
+#include "logging.h"
 
 long int _ciac_indizes[100];
 char * _ciac_filename = NULL;

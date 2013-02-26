@@ -111,10 +111,13 @@ gint fritz_disconnect(void) {
   size_t bytes;
   log_log("fritz: disconnect\n");
   if (_cifritz_server.state == CIFritzServerStateListening) {
+    log_log("write to pipe\n");
     bytes = write(_cifritz_server.fdpipe[1], "disconnect", 10);
     if (bytes != 10)
       log_log("Error writing to pipe.\n");
+    log_log("join: %p\n", _cifritz_server.thread);
     g_thread_join(_cifritz_server.thread);
+    log_log("joined\n");
     _cifritz_server.state = CIFritzServerStateConnected;
   }
   if (_cifritz_server.state >= CIFritzServerStateConnected) {
