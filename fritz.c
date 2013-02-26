@@ -200,6 +200,7 @@ void * _fritz_listen_thread_proc(void * pdata) {
       if (netutil_connection_lost(_cifritz_server.netlink)) {
         _cifritz_server.state = CIFritzServerStateConnected;
         log_log("Connection lost, trying to reconnect\n");
+        fritz_init_reconnect();
         return NULL;
       }
     }
