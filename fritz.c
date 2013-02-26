@@ -5,7 +5,6 @@
 #include <memory.h>
 #include <sys/types.h>
 #include <unistd.h>
-/*#include <pthread.h>*/
 #include "netutils.h"
 #include "fritz.h"
 #include "logging.h"
@@ -25,8 +24,8 @@ typedef struct _CIFritzServer {
   gushort port;
   gushort state;
   int sock;
+  int netlink;
   int fdpipe[2];
-/*  pthread_t thread;*/
   GThread * thread;
 } CIFritzServer;
 
@@ -36,11 +35,11 @@ void _fritz_parse_date(gchar * buffer, struct tm * dt);
 gint _fritz_parse_notification(const gchar * notify, CIFritzCallMsg * cmsg);
 void * _fritz_listen_thread_proc(void * pdata);
 
-gboolean _fritz_try_reconnect(CIFritzServer * data);
+gboolean _fritz_try_reconnect(gpointer *data);
 
 CIFritzServer _cifritz_server;
 
-gint fritz_init(void/*GMainContext * ctx*/) {
+gint fritz_init(gchar *host, gushort port) {
 #if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 20
   if (!g_thread_get_initialized()) {
 #else
@@ -49,18 +48,30 @@ gint fritz_init(void/*GMainContext * ctx*/) {
     g_thread_init(NULL);
   }
   memset(&_cifritz_server, 0, sizeof(CIFritzServer));
-  _cifritz_server.state = CIFritzServerStateInitialized;
   _main_context = g_main_context_default();
-  return 0;
-}
 
-gint fritz_connect(gchar * host, gushort port) {
   if (!host) {
     return 1;
   }
+
   _cifritz_server.host = g_strdup(host);
   _cifritz_server.port = port;
 
+  /* init netlink socket */
+  if ((_cifritz_server.netlink = netutil_init_netlink()) == -1) {
+    log_log("Error connecting netlink socket.\n");
+    return 2;
+  }
+
+  if (pipe(_cifritz_server.fdpipe) != 0) {
+    return 3;
+  }
+
+  _cifritz_server.state = CIFritzServerStateInitialized;
+  return 0;
+}
+
+gint fritz_connect(void) {
   if (_cifritz_server.state != CIFritzServerStateInitialized) {
     return 4;
   }
@@ -83,20 +94,16 @@ gint fritz_connect(gchar * host, gushort port) {
 }
 
 gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *)) {
-/*  int rc;*/
   _cifritz_server.fritz_listen_cb = fritz_listen_cb;
+
   if (_cifritz_server.state != CIFritzServerStateConnected) {
     return 5;
   }
-  if (pipe(_cifritz_server.fdpipe) != 0) {
-    return 3;
-  }
-/*  if ((rc = pthread_create(&_cifritz_server.thread, NULL, _fritz_listen_thread_proc, NULL))) {
-    return 4;
-  }*/
+
   if ((_cifritz_server.thread = g_thread_create((GThreadFunc)_fritz_listen_thread_proc, NULL, TRUE, NULL)) == NULL) {
     return 4;
   }
+
   return 0;
 }
 
@@ -105,16 +112,14 @@ gint fritz_disconnect(void) {
   log_log("fritz: disconnect\n");
   if (_cifritz_server.state == CIFritzServerStateListening) {
     bytes = write(_cifritz_server.fdpipe[1], "disconnect", 10);
-     /*pthread_join(_cifritz_server.thread, NULL);*/
-     g_thread_join(_cifritz_server.thread);
-     close(_cifritz_server.fdpipe[0]);
-     close(_cifritz_server.fdpipe[1]);
-     _cifritz_server.state = CIFritzServerStateConnected;
+    if (bytes != 10)
+      log_log("Error writing to pipe.\n");
+    g_thread_join(_cifritz_server.thread);
+    _cifritz_server.state = CIFritzServerStateConnected;
   }
   if (_cifritz_server.state >= CIFritzServerStateConnected) {
     close(_cifritz_server.sock);
     _cifritz_server.sock = -1;
-/*    _cifritz_server.thread = -1;*/
     _cifritz_server.thread = NULL;
     _cifritz_server.state = CIFritzServerStateInitialized;
   }
@@ -125,6 +130,12 @@ gint fritz_cleanup(void) {
   if (_cifritz_server.state >= CIFritzServerStateConnected) {
     fritz_disconnect();
   }
+  close(_cifritz_server.fdpipe[0]);
+  close(_cifritz_server.fdpipe[1]);
+  close(_cifritz_server.netlink);
+  _cifritz_server.fdpipe[0] = -1;
+  _cifritz_server.fdpipe[1] = -1;
+  _cifritz_server.netlink = -1;
   g_free(_cifritz_server.host);
   _cifritz_server.host = NULL;
   return 0;
@@ -137,7 +148,13 @@ void * _fritz_listen_thread_proc(void * pdata) {
   int bytes;
   
   fd_set rfds;
-  int max = (_cifritz_server.sock > _cifritz_server.fdpipe[0] ? _cifritz_server.sock : _cifritz_server.fdpipe[0]) + 1;
+  int max;
+  max = _cifritz_server.sock;
+  if (max < _cifritz_server.fdpipe[0])
+    max = _cifritz_server.fdpipe[0];
+  if (max < _cifritz_server.netlink)
+    max = _cifritz_server.netlink;
+  ++max;
   
   CIFritzCallMsg cmsg;
   
@@ -145,6 +162,7 @@ void * _fritz_listen_thread_proc(void * pdata) {
     FD_ZERO(&rfds);
     FD_SET(_cifritz_server.sock, &rfds);
     FD_SET(_cifritz_server.fdpipe[0], &rfds);
+    FD_SET(_cifritz_server.netlink, &rfds);
     
     if (select(max, &rfds, NULL, NULL, NULL) < 0) {
       log_log("select returned negative value, terminating thread\n");
@@ -164,6 +182,7 @@ void * _fritz_listen_thread_proc(void * pdata) {
       }
       else {
         log_log("fritz: lost connection, trying to reconnect\n");
+        _cifritz_server.state = CIFritzServerStateConnected;
         fritz_init_reconnect();
         return NULL;
       }
@@ -173,6 +192,14 @@ void * _fritz_listen_thread_proc(void * pdata) {
       log_log("received terminating signal\n");
       return NULL;
     }
+
+    if (FD_ISSET(_cifritz_server.netlink, &rfds)) {
+      if (netutil_connection_lost(_cifritz_server.netlink)) {
+        _cifritz_server.state = CIFritzServerStateConnected;
+        log_log("Connection lost, trying to reconnect\n");
+        return NULL;
+      }
+    }
   }
   _cifritz_server.state = CIFritzServerStateConnected;
   log_log("No file descriptor set -- returning\n");
@@ -180,35 +207,18 @@ void * _fritz_listen_thread_proc(void * pdata) {
 }
 
 void fritz_init_reconnect(void) {
-  CIFritzServer * tmp = malloc(sizeof(CIFritzServer));
-  memset(tmp, 0, sizeof(CIFritzServer));
-  tmp->host = g_strdup(_cifritz_server.host);
-  tmp->port = _cifritz_server.port;
-  tmp->fritz_listen_cb = _cifritz_server.fritz_listen_cb;
-  
-  g_timeout_add_seconds(10, (GSourceFunc)_fritz_try_reconnect, (gpointer)tmp);
-/*  GSource * source;
-  guint id;
-  
-  g_main_context_ref(_main_context);
-  source = g_timeout_source_new_seconds(10);
-  g_source_set_callback(source, (GSourceFunc)_fritz_try_reconnect, (gpointer)tmp, NULL);
-  id = g_source_attach(source, _main_context);
-  g_source_unref(source);
-  g_main_context_unref(_main_context);*/
+  g_timeout_add_seconds(10, (GSourceFunc)_fritz_try_reconnect, (gpointer)NULL);
 }
 
-gboolean _fritz_try_reconnect(CIFritzServer * data) {
+gboolean _fritz_try_reconnect(gpointer *data) {
   log_log("fritz: trying to reconnect\n");
-  fritz_cleanup();
-  if (fritz_connect(data->host, data->port) != 0) {
+  fritz_disconnect();
+  if (fritz_connect() != 0) {
     return TRUE;
   }
-  if (fritz_listen(data->fritz_listen_cb) != 0) {
+  if (fritz_listen(_cifritz_server.fritz_listen_cb) != 0) {
     return TRUE;
   }
-  g_free(data->host);
-  g_free(data);
   return FALSE;
 }
 

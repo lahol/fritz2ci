@@ -68,10 +68,8 @@ int main(int argc, char ** argv) {
   
   _db_data_todo = g_queue_new();
   
-  if (fritz_init(/*context*/) != 0) {
-    /*config_free();*/
+  if (fritz_init((gchar*)cfg->fritz_host, cfg->fritz_port) != 0) {
     fprintf(stderr, "Could not initialize fritz\n");
-    /*return 1;*/
   }
   else {
     log_log("initialized fritz\n");
@@ -84,9 +82,7 @@ int main(int argc, char ** argv) {
   log_log("initialized cisrv\n");
   
   if (dbhandler_init() != 0) {
-/*    config_free();*/
     fprintf(stderr, "Could not initialize dbhandler\n");
-/*    return 1;*/
   }
   else {
     log_log("initialized dbhandler\n");
@@ -105,9 +101,7 @@ int main(int argc, char ** argv) {
   log_log("loaded msn lookup file\n");
   
   /*connect*/
-  if (fritz_connect((gchar*)cfg->fritz_host, cfg->fritz_port) != 0) {
-    /*_shutdown();*/
-/*    return 1;*/
+  if (fritz_connect() != 0) {
   }
   else {
     log_log("connected fritz\n");
@@ -120,9 +114,7 @@ int main(int argc, char ** argv) {
   log_log("started ci srv\n");
   
   if (dbhandler_connect(cfg->db_host, cfg->db_port) != 0) {
-    /*_shutdown();*/
     db_try_reconnect(cfg->db_host, cfg->db_port);
-/*    return 1;*/
   }
   else {
     log_log("started dbhandler\n");
@@ -130,8 +122,6 @@ int main(int argc, char ** argv) {
   
   if (fritz_listen(handle_fritz_message) != 0) {
     fritz_init_reconnect();
-/*    _shutdown();
-    return 1;*/
   }
   else {
     log_log("listening to fritz\n");
@@ -151,12 +141,8 @@ int main(int argc, char ** argv) {
   _sgn.sa_handler = _handle_signal;
   sigaction(SIGINT, &_sgn, NULL);
   sigaction(SIGTERM, &_sgn, NULL);
-/*signal(SIGINT, (sig_t)_handle_signal);
-  signal(SIGTERM, (sig_t)_handle_signal);*/
   
   g_main_loop_run(mainloop);
-  /*shutdown*/
-/*  g_main_context_unref(context);*/
   _shutdown();
   return 0;
 }

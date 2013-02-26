@@ -177,9 +177,9 @@ gint cidb_insert_caller(CICaller * caller) {
  */
 void cidb_clear_cache(void) {
   char * sql;
-  int rc;
+/*  int rc;*/
   sql = "delete from callercache";
-  rc = sqlite3_exec(_cidb_db, sql, NULL, NULL, NULL);
+  /*rc =*/ (void)sqlite3_exec(_cidb_db, sql, NULL, NULL, NULL);
   sqlite3_free(sql);
 }
 

@@ -202,13 +202,15 @@ gint cisrv_disconnect(void) {
   size_t bytes;
   switch (_cisrv_server.state) {
     case CISrvStateRunning:
-      bytes = write(_cisrv_server.fdpipe[1], "disconnect", 10);
-      /*pthread_join(_cisrv_server.serverthread, NULL);*/
-      g_thread_join(_cisrv_server.serverthread);
-      close(_cisrv_server.fdpipe[0]);
-      close(_cisrv_server.fdpipe[1]);
-      _cisrv_server.serverthread = NULL/*-1*/;
-      _cisrv_server.state = CISrvStateConnected;
+        bytes = write(_cisrv_server.fdpipe[1], "disconnect", 10);
+        if (bytes != 10) {
+          log_log("Error writing to pipe.\n");
+        }
+        g_thread_join(_cisrv_server.serverthread);
+        close(_cisrv_server.fdpipe[0]);
+        close(_cisrv_server.fdpipe[1]);
+        _cisrv_server.serverthread = NULL/*-1*/;
+        _cisrv_server.state = CISrvStateConnected;
     case CISrvStateConnected:
       cisrv_broadcast_message(CI2ServerMsgDisconnect, NULL);
       _cisrv_server.state = CISrvStateInitialized;
