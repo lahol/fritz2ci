@@ -23,7 +23,7 @@ void log_log(gchar * fmt, ...) {
     time(&t);
     localtime_r(&t, &bdt);
     strftime(buf, 63, "[%Y%m%d-%H%M%S] ", &bdt);
-    f = fopen("/var/log/fritz2ci.log", "at");
+    f = fopen("/var/callerinfo/log/fritz2ci.log", "at");
     if (f != NULL) {
       fputs(buf, f);
       va_start(args, fmt);
