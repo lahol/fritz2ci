@@ -40,13 +40,6 @@ gboolean _fritz_try_reconnect(gpointer *data);
 CIFritzServer _cifritz_server;
 
 gint fritz_init(gchar *host, gushort port) {
-#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 20
-  if (!g_thread_get_initialized()) {
-#else
-  if (!g_thread_supported()) {
-#endif
-    g_thread_init(NULL);
-  }
   memset(&_cifritz_server, 0, sizeof(CIFritzServer));
   _main_context = g_main_context_default();
 
@@ -100,7 +93,7 @@ gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *)) {
     return 5;
   }
 
-  if ((_cifritz_server.thread = g_thread_create((GThreadFunc)_fritz_listen_thread_proc, NULL, TRUE, NULL)) == NULL) {
+  if ((_cifritz_server.thread = g_thread_new("Fritz", (GThreadFunc)_fritz_listen_thread_proc, NULL)) == NULL) {
     return 4;
   }
 

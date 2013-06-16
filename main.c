@@ -32,18 +32,11 @@ void db_try_reconnect(gchar * host, gushort port);
 GMainLoop *mainloop = NULL;
 /*GMainContext * context = NULL;*/
 GQueue * _db_data_todo = NULL;
-GStaticMutex _db_data_queue_lock = G_STATIC_MUTEX_INIT;
+static GMutex _db_data_queue_lock;
 
 int main(int argc, char ** argv) {
   pid_t daemon_pid;
   struct sigaction _sgn;
-#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 20
-  if (!g_thread_get_initialized()) {
-#else
-  if (!g_thread_supported()) {
-#endif
-    g_thread_init(NULL);
-  }
 /*  context = g_main_context_default();
   g_main_context_ref(context);*/
   if (parse_cmd_line(&argc, &argv)) {
@@ -217,7 +210,7 @@ void handle_fritz_message(CIFritzCallMsg * cmsg) {
     strftime(set.cidsDate, 16, "%Y-%m-%d", &cmsg->datetime);
     cisrv_broadcast_message(CI2ServerMsgMessage, &set);
     rc = lookup_get_caller_data(&set);
-    g_static_mutex_lock(&_db_data_queue_lock);
+    g_mutex_lock(&_db_data_queue_lock);
     if (g_queue_is_empty(_db_data_todo)) {
       if ((dbrc = dbhandler_add_data(&set)) != 0) { /* send or receive failed, init reconnect */
         log_log("add data failed\n");
@@ -233,7 +226,7 @@ void handle_fritz_message(CIFritzCallMsg * cmsg) {
       memcpy(todo, &set, sizeof(CIDataSet));
       g_queue_push_tail(_db_data_todo, (gpointer)todo);
     }
-    g_static_mutex_unlock(&_db_data_queue_lock);
+    g_mutex_unlock(&_db_data_queue_lock);
     if (rc == 0) {
       cisrv_broadcast_message(CI2ServerMsgUpdate, &set);
     }
@@ -271,7 +264,7 @@ gboolean _db_reconnect_cb(DBInfo * db) {
   if (dbhandler_connect(db->host, db->port) != 0) {
     return TRUE;
   }
-  g_static_mutex_lock(&_db_data_queue_lock);
+  g_mutex_lock(&_db_data_queue_lock);
   while ((data = (CIDataSet*)g_queue_peek_head(_db_data_todo)) != NULL) {
     rc = dbhandler_add_data(data);
     if (rc) {
@@ -280,7 +273,7 @@ gboolean _db_reconnect_cb(DBInfo * db) {
     g_queue_pop_head(_db_data_todo);
     g_free((CIDataSet*)data);
   }
-  g_static_mutex_unlock(&_db_data_queue_lock);
+  g_mutex_unlock(&_db_data_queue_lock);
   if (rc) { 
     return TRUE;
   }
