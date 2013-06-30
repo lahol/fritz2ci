@@ -53,6 +53,7 @@ gint dbhandler_connect(gchar * host, gushort port) {
     return 2;
   }
   _db_state = CIDBHandlerStateConnected;
+  log_log("db connected\n");
   return 0;
 }
 

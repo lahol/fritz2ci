@@ -16,6 +16,8 @@ typedef struct _Fritz2CIConfig {
   gboolean verbose;
   gboolean daemon;
   gchar * configfile;
+  gchar *log_file;
+  gchar *pid_file;
   gchar * msn_lookup_location;
   gchar * data_backup_location;
   guint lookup_source_id;

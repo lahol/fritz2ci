@@ -3,14 +3,12 @@ INCDIRS = -I/usr/include `pkg-config --cflags glib-2.0` `curl-config --cflags` `
 
 CC = gcc
 CFLAGS = -Wall $(COMPILERFLAGS) $(INCDIRS) -O1
-LIBS = -lc -lpthread -lsqlite3
+LIBS = -lc -lsqlite3
 
-ifndef PREFIX
-	PREFIX=/usr/local
-endif
+PREFIX ?= /usr
 
 all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o ./logging.o ./dbhandler.o \
-	./cidbmessages.o ./cidbconnection.o ./lookup.o ./msn_lookup.o
+	./cidbmessages.o ./cidbconnection.o ./lookup.o ./msn_lookup.o ./daemon.o
 	mkdir -p ./bin
 	$(CC) $(CFLAGS) -o./bin/fritz2ci \
 	main.c \
@@ -25,6 +23,7 @@ all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o .
 	cidbconnection.c \
 	lookup.c \
 	msn_lookup.c \
+	daemon.c \
 	$(LIBDIRS) $(LIBS)
 
 clean:

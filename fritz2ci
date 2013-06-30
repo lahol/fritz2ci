@@ -20,8 +20,8 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Fritz2ci daemon"
 NAME=fritz2ci
 DAEMON=/usr/bin/fritz2ci
-DAEMON_ARGS="-d"
-PIDFILE=/var/run/$NAME.pid
+DAEMON_ARGS="-d -v"
+PIDFILE=/var/callerinfo/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
 # Exit if the package is not installed

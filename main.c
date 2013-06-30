@@ -14,6 +14,7 @@
 #include "ci_areacodes.h"
 #include "msn_lookup.h"
 #include "logging.h"
+#include "daemon.h"
 
 void _shutdown(void);
 void _handle_signal(int signum);
@@ -37,28 +38,30 @@ static GMutex _db_data_queue_lock;
 int main(int argc, char ** argv) {
   pid_t daemon_pid;
   struct sigaction _sgn;
-/*  context = g_main_context_default();
-  g_main_context_ref(context);*/
+
   if (parse_cmd_line(&argc, &argv)) {
     fprintf(stderr, "Could not parse command line\n");
     return 1;
   }
+
   const Fritz2CIConfig * cfg = config_get_config();
+  log_set_verbose(cfg->verbose);
+  if (config_load(cfg->configfile) != 0) {
+    fprintf(stderr, "Could not read configuration\n");
+    return 1;
+  }
+  log_set_log_file(cfg->log_file);
+  log_log("loaded configuration\n");
+
   if (cfg->daemon) {
-    daemon_pid = fork();
+    daemon_pid = start_daemon(cfg->pid_file);
     if (daemon_pid != -1 && daemon_pid) {
       config_free();
       printf("Starting as daemon. Process id is %d\n", daemon_pid);
       return 0;
     }
   }
-  log_set_verbose(cfg->verbose);
-  if (config_load(cfg->configfile) != 0) {
-    fprintf(stderr, "Could not read configuration\n");
-    return 1;
-  }
-  log_log("loaded configuration\n");
-  
+ 
   _db_data_todo = g_queue_new();
   
   if (fritz_init((gchar*)cfg->fritz_host, cfg->fritz_port) != 0) {
@@ -175,6 +178,9 @@ void _shutdown(void) {
   if (cnt) {
     log_log("There were %d sets not written to database\n", cnt);
   }
+
+  stop_daemon();
+
   log_log("done with shutdown\n");
 }
 

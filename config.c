@@ -26,6 +26,8 @@ gint config_load(gchar * conffile) {
     _config.msn_lookup_location = g_strdup("/usr/share/fritz2ci/msn.dat");
     _config.data_backup_location = g_strdup("cidata.dat");
     _config.lookup_source_id = 1;
+    _config.log_file = NULL;
+    _config.pid_file = NULL;
   }
   else {
     log_log("Reading config file %s\n", conffile);
@@ -40,6 +42,8 @@ gint config_load(gchar * conffile) {
     _config.msn_lookup_location = g_key_file_get_string(kf, "Lookup", "MSNFile", NULL);
     _config.data_backup_location = g_key_file_get_string(kf, "Database", "Backupfile", NULL);
     _config.lookup_source_id = g_key_file_get_integer(kf, "Lookup", "Source", NULL);
+    _config.log_file = g_key_file_get_string(kf, "Daemon", "Logfile", NULL);
+    _config.pid_file = g_key_file_get_string(kf, "Daemon", "Pidfile", NULL);
     g_key_file_free(kf);
   }
   
@@ -55,6 +59,8 @@ void config_free(void) {
   g_free(_config.configfile);
   g_free(_config.msn_lookup_location);
   g_free(_config.data_backup_location);
+  g_free(_config.log_file);
+  g_free(_config.pid_file);
 }
 
 const Fritz2CIConfig * config_get_config(void) {
