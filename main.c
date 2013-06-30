@@ -55,7 +55,11 @@ int main(int argc, char ** argv) {
 
   if (cfg->daemon) {
     daemon_pid = start_daemon(cfg->pid_file);
-    if (daemon_pid != -1 && daemon_pid) {
+    if (daemon_pid == -1) {
+        log_log("Could not start daemon\n");
+        return 1;
+    }
+    if (daemon_pid) {
       config_free();
       printf("Starting as daemon. Process id is %d\n", daemon_pid);
       return 0;
