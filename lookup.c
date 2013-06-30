@@ -38,7 +38,7 @@ gint cirlw_init(void);
 void cirlw_cleanup(void);
 gint cirlw_load_sources_from_file(const gchar * filename);
 
-gint cirlw_get_caller(gulong sourcid, CICaller * caller);
+gint cirlw_get_caller(gulong sourceid, CICaller * caller);
 
 
 /*global db-handle*/
@@ -581,12 +581,12 @@ gint _cirlw_match_patterns(CIRLSource * source, CICaller * caller, gulong * foun
   GSList * tmp_field;
   j = 0;
   while (tmp_pat) {
-    reg[j] = g_regex_new(((CIRLPattern*)tmp_pat->data)->expression, 0, 0, NULL);
+    reg[j] = g_regex_new(((CIRLPattern*)tmp_pat->data)->expression, G_REGEX_RAW, 0, NULL);
     pats[j] = (CIRLPattern*)tmp_pat->data;
     j++;
     tmp_pat = g_slist_next(tmp_pat);
   }
-  reg[npat] = g_regex_new("[C|c][H|h][A|a][R|r][S|s][E|e][T|t]\\s*=\\s*([A-Za-z0-9-]+)", 0, 0, NULL);
+  reg[npat] = g_regex_new("[C|c][H|h][A|a][R|r][S|s][E|e][T|t]\\s*=\\s*([A-Za-z0-9-]+)", G_REGEX_RAW, 0, NULL);
   if (source->split_lines) {
     lines = g_strsplit(_cirlw_memory.mem, "\n", 0);
     if (!lines) {
