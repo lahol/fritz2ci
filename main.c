@@ -60,8 +60,8 @@ int main(int argc, char ** argv) {
         return 1;
     }
     if (daemon_pid) {
+      log_log("Starting as daemon. Process id is %d\n", daemon_pid);
       config_free();
-      printf("Starting as daemon. Process id is %d\n", daemon_pid);
       return 0;
     }
   }
@@ -154,24 +154,16 @@ int main(int argc, char ** argv) {
 }
 
 void _shutdown(void) {
-  log_log("shutdown\n");
   ci_free_area_codes();
   fritz_disconnect();
   dbhandler_disconnect();
   cisrv_disconnect();
 
   msnl_cleanup();
-  log_log("fritz_cleanup\n");
   fritz_cleanup();
-  log_log("dbhandler cleanup\n");
   dbhandler_cleanup();
-  log_log("cisrv cleanup\n");
   cisrv_cleanup();
-  log_log("lookup cleanup\n");
   lookup_cleanup();
-  log_log("config free\n");
-  config_free();
-  log_log("remove todo\n");
   int cnt = 0;
   CIDataSet * set;
   while ((set = g_queue_pop_head(_db_data_todo)) != NULL) {
@@ -182,10 +174,10 @@ void _shutdown(void) {
   if (cnt) {
     log_log("There were %d sets not written to database\n", cnt);
   }
+  
+  config_free();
 
   stop_daemon();
-
-  log_log("done with shutdown\n");
 }
 
 void _handle_signal(int signum) {
