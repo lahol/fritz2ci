@@ -30,7 +30,7 @@ gint config_load(gchar * conffile) {
     _config.pid_file = NULL;
   }
   else {
-    log_log("Reading config file %s\n", conffile);
+/*    log_log("Reading config file %s\n", conffile);*/
     _config.fritz_host = g_key_file_get_string(kf, "Fritz", "Host", NULL);
     _config.fritz_port = (gushort)g_key_file_get_integer(kf, "Fritz", "Port", NULL);
     _config.ci2_port = (gushort)g_key_file_get_integer(kf, "CIServer", "Port", NULL);
