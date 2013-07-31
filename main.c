@@ -69,7 +69,7 @@ int main(int argc, char ** argv) {
   _db_data_todo = g_queue_new();
   
   if (fritz_init((gchar*)cfg->fritz_host, cfg->fritz_port) != 0) {
-    fprintf(stderr, "Could not initialize fritz\n");
+    log_log("Could not initialize fritz\n");
     _shutdown();
     return 1;
   }
@@ -77,28 +77,28 @@ int main(int argc, char ** argv) {
     log_log("initialized fritz\n");
   }
   if (cisrv_init() != 0) {
-    fprintf(stderr, "Could not initialize ci2server\n");
+    log_log("Could not initialize ci2server\n");
     _shutdown();
     return 1;
   }
   log_log("initialized cisrv\n");
   
   if (dbhandler_init() != 0) {
-    fprintf(stderr, "Could not initialize dbhandler\n");
+    log_log("Could not initialize dbhandler\n");
   }
   else {
     log_log("initialized dbhandler\n");
   }
   if (lookup_init(cfg->lookup_sources_location, cfg->cache_location) != 0) {
-    fprintf(stderr, "Could not initialize lookup\n");
+    log_log("Could not initialize lookup\n");
     _shutdown();
     return 1;
   }
   log_log("initialized lookup\n");
   
   if (msnl_read_file(cfg->msn_lookup_location) != 0) {
+    log_log("Could not open msn lookup file\n");
     _shutdown();
-    fprintf(stderr, "Could not open msn lookup file\n");
     return 1;
   }
   log_log("loaded msn lookup file\n");

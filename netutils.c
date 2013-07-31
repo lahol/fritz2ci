@@ -30,17 +30,21 @@ int netutil_init_netlink(void)
   int sock;
   
   if ((sock = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) == -1) {
+    log_log("netlink: init socket failed\n");
     return -1;
   }
 
   memset(&addr, 0, sizeof(addr));
   addr.nl_family = AF_NETLINK;
-  addr.nl_groups = RTMGRP_IPV4_IFADDR;
+  addr.nl_pid = getpid(); /* see http://www.linuxjournal.com/article/7356?page=0,1 */
+  addr.nl_groups = RTMGRP_IPV4_IFADDR | RTMGRP_LINK;
 
   if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+    log_log("netlink: bind failed\n");
     return -1;
   }
 
+  log_log("netlink: sock=%d\n", sock);
   return sock;
 }
 
@@ -63,6 +67,7 @@ gboolean netutil_connection_lost(int nlsock)
         log_log("RTM_DELLINK\n");
         return TRUE;
       }
+      log_log("Unhandled netling msg: %d\n", nlh->nlmsg_type);
       nlh = NLMSG_NEXT(nlh, len);
     }
   }
