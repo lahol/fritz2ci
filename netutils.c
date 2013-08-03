@@ -61,13 +61,19 @@ int wait_for_bind(int sock, const struct sockaddr *addr, socklen_t addrlen, int 
     int rc;
     fd_set set;
 
+    int berr;
+
     struct timeval timeout;
 
     if (sock < 0) return -1;
 
     while ((rc = bind(sock, addr, addrlen)) != 0) {
+        berr = errno;
         log_log("wait_for_bind: bind (%d) failed: %d (%s)\n", sock,
                 errno, strerror(errno));
+        if (berr != EADDRINUSE) {
+            return -1;
+        }
         if (ctrlfd >= 0) {
             FD_ZERO(&set);
             FD_SET(ctrlfd, &set);
