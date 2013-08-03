@@ -4,6 +4,7 @@
 #include <net/if.h>
 #include <memory.h>
 #include "logging.h"
+#include <stdarg.h>
 
 in_addr_t netutil_get_ip_address(const gchar * hostname)
 {
@@ -24,6 +25,36 @@ in_addr_t netutil_get_ip_address(const gchar * hostname)
   }
 }
 
+int netutil_init_fd_set(fd_set *set, int nfd, ...)
+{
+    va_list ap;
+    int i, s, max = -2;
+
+    if (!set)
+        return -1;
+    FD_ZERO(set);
+
+    va_start(ap, nfd);
+    for (i = 0; i < nfd; i++) {
+        s = va_arg(ap, int);
+        if (s >= 0) {
+            FD_SET(s, set);
+            if (max < s) max = s;
+        }
+    }
+    va_end(ap);
+
+    return ++max;
+}
+
+void netutil_close_fd(int *fd)
+{
+    if (fd && *fd >= 0) {
+        close(*fd);
+        *fd = -1;
+    }
+}
+
 int netutil_init_netlink(void)
 {
   struct sockaddr_nl addr;
@@ -37,7 +68,7 @@ int netutil_init_netlink(void)
   memset(&addr, 0, sizeof(addr));
   addr.nl_family = AF_NETLINK;
   addr.nl_pid = getpid(); /* see http://www.linuxjournal.com/article/7356?page=0,1 */
-  addr.nl_groups = RTMGRP_IPV4_IFADDR | RTMGRP_LINK;
+  addr.nl_groups = /*RTMGRP_IPV4_IFADDR |*/ RTMGRP_LINK;
 
   if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
     log_log("netlink: bind failed\n");
@@ -48,30 +79,70 @@ int netutil_init_netlink(void)
   return sock;
 }
 
-gboolean netutil_connection_lost(int nlsock)
+enum IfOperstate {
+    IF_OPER_UNKNOWN = 0,
+    IF_OPER_NOTPRESENT,
+    IF_OPER_DOWN,
+    IF_OPER_LOWERLAYLER_DOWN,
+    IF_OPER_TESTING,
+    IF_OPER_DORMANT,
+    IF_OPER_UP
+};
+
+void _netutil_netlink_handle_newlink(struct nlmsghdr *h, NetutilCallbacks *cb, void *data)
 {
-  log_log("check connection lost\n");
-  char buffer[4096];
-  int len;
-  struct nlmsghdr *nlh;
+    struct ifinfomsg *iface;
+    struct rtattr *attr;
+    int len;
+    char ifname[IF_NAMESIZE];
+    enum IfOperstate state = IF_OPER_UNKNOWN;
+    ifname[0] = 0;
 
-  nlh = (struct nlmsghdr*)buffer;
+    iface = NLMSG_DATA(h);
+    len = h->nlmsg_len - NLMSG_LENGTH(sizeof(*iface));
 
-  if ((len = recv(nlsock, nlh, 4096, 0)) >= 1) {
-    while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
-      if (nlh->nlmsg_type == RTM_DELADDR) {
-        log_log("RTM_DELADDR\n");
-        return TRUE;
-      }
-      if (nlh->nlmsg_type == RTM_DELLINK) {
-        log_log("RTM_DELLINK\n");
-        return TRUE;
-      }
-      log_log("Unhandled netling msg: %d\n", nlh->nlmsg_type);
-      nlh = NLMSG_NEXT(nlh, len);
+    for (attr = IFLA_RTA(iface); RTA_OK(attr, len); attr = RTA_NEXT(attr, len)) {
+        switch (attr->rta_type) {
+            case IFLA_IFNAME:
+                strcpy(ifname, (char*)RTA_DATA(attr));
+                break;
+            case IFLA_OPERSTATE:
+                state = *(int*)RTA_DATA(attr);
+                break;
+        }
     }
-  }
-  return FALSE;
+
+    if (state == IF_OPER_DOWN) {
+        log_log("Network %s down, invoke net down handler\n", ifname);
+        if (cb && cb->net_down) cb->net_down(data);
+    }
+    else if (state == IF_OPER_UP) {
+        log_log("Network %s up, invoke net up handler\n", ifname);
+        if (cb && cb->net_up) cb->net_up(data);
+    }
+}
+
+void netutil_handle_netlink_message(int nlsock, NetutilCallbacks *cb, void *data)
+{
+    char buffer[4096];
+    int len;
+    struct nlmsghdr *nlh;
+
+    nlh = (struct nlmsghdr*)buffer;
+
+    while ((len = recv(nlsock, nlh, 4096, MSG_DONTWAIT)) >= 1) {
+        while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
+            if (nlh->nlmsg_type == RTM_NEWLINK) {
+                log_log("netlink: RTM_NEWLINK\n");
+                _netutil_netlink_handle_newlink(nlh, cb, data);
+            }
+            else {
+                log_log("netlink: unhandled msg: %d\n", nlh->nlmsg_type);
+            }
+            nlh = NLMSG_NEXT(nlh, len);
+        }
+        nlh = (struct nlmsghdr*)buffer;
+    }
 }
 
 void netutil_cleanup(int nlsock)

@@ -125,7 +125,8 @@ int main(int argc, char ** argv) {
   }
   
   if (fritz_listen(handle_fritz_message) != 0) {
-    fritz_init_reconnect();
+      log_log("failed to listen (fritz)\n");
+      return 1;
   }
   else {
     log_log("listening to fritz\n");
