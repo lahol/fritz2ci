@@ -73,3 +73,10 @@ gboolean netutil_connection_lost(int nlsock)
   }
   return FALSE;
 }
+
+void netutil_cleanup(int nlsock)
+{
+    log_log("netutil cleanup\n");
+    if (nlsock >= 0)
+        close(nlsock);
+}

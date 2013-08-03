@@ -128,7 +128,7 @@ gint fritz_cleanup(void) {
   }
   close(_cifritz_server.fdpipe[0]);
   close(_cifritz_server.fdpipe[1]);
-  close(_cifritz_server.netlink);
+  netutil_cleanup(_cifritz_server.netlink);
   _cifritz_server.fdpipe[0] = -1;
   _cifritz_server.fdpipe[1] = -1;
   _cifritz_server.netlink = -1;
