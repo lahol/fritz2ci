@@ -20,7 +20,7 @@ typedef struct _CIFritzCallMsg {
 } CIFritzCallMsg;
 
 gint fritz_init(gchar * host, gushort port);
-gint fritz_connect(void);
+gint fritz_connect(gboolean *connected);
 gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *));
 gint fritz_disconnect(void);
 gint fritz_cleanup(void);

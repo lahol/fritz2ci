@@ -5,6 +5,7 @@
 #include <memory.h>
 #include "logging.h"
 #include <stdarg.h>
+#include <errno.h>
 
 in_addr_t netutil_get_ip_address(const gchar * hostname)
 {
@@ -53,6 +54,43 @@ void netutil_close_fd(int *fd)
         close(*fd);
         *fd = -1;
     }
+}
+
+int wait_for_bind(int sock, const struct sockaddr *addr, socklen_t addrlen, int ctrlfd)
+{
+    int rc;
+    fd_set set;
+
+    struct timeval timeout;
+
+    if (sock < 0) return -1;
+
+    while ((rc = bind(sock, addr, addrlen)) != 0) {
+        log_log("wait_for_bind: bind (%d) failed: %d (%s)\n", sock,
+                errno, strerror(errno));
+        if (ctrlfd >= 0) {
+            FD_ZERO(&set);
+            FD_SET(ctrlfd, &set);
+            timeout.tv_sec = 10;
+            timeout.tv_usec = 0;
+            rc = select(ctrlfd+1, &set, NULL, NULL, &timeout);
+            if (rc > 0) {
+                log_log("wait_for_bind: control message received.\n");
+                return 1;
+            }
+            else if (rc < 0) {
+                return -1;
+            }
+            /* rc == 0: timeout reached */
+        }
+        else {
+            sleep(10);
+        }
+    }
+
+    log_log("wait_for_bind: bind succeeded.\n");
+
+    return 0;
 }
 
 int netutil_init_netlink(void)

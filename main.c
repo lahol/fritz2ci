@@ -104,10 +104,8 @@ int main(int argc, char ** argv) {
   log_log("loaded msn lookup file\n");
   
   /*connect*/
-  if (fritz_connect() != 0) {
-  }
-  else {
-    log_log("connected fritz\n");
+  if (fritz_connect(NULL) == 0) {
+      log_log("connected fritz\n");
   }
   
   if (cisrv_run(cfg->ci2_port) != 0) {

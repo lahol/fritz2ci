@@ -13,6 +13,8 @@
 /*#include <pthread.h>*/
 #include "ci2server.h"
 #include "logging.h"
+#include "netutils.h"
+#include <errno.h>
 
 typedef enum {
   CISrvStateUninitialized = 0,
@@ -105,12 +107,17 @@ void* _cisrv_listen_thread_proc(void * pdata) {
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = INADDR_ANY;
   addr.sin_port = htons(_cisrv_server.port);
-  rc = bind(_cisrv_server.sock, (const struct sockaddr*)&addr, sizeof(addr));
+  rc = wait_for_bind(_cisrv_server.sock, (const struct sockaddr*)&addr, sizeof(addr), _cisrv_server.fdpipe[0]);
   if (rc == -1) {
-    return NULL;
+      return NULL;
+  }
+  if (rc == 1) {
+      /* fdpipe has input, quit */
+      return NULL;
   }
   rc = listen(_cisrv_server.sock, 10);
   if (rc == -1) {
+      log_log("ci2server: Could not listen: %d (%s)\n", errno, strerror(errno));
     return NULL;
   }
   while (1) {
@@ -181,10 +188,13 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet * data) {
   tmp = _cisrv_server.clientlist;
   while (tmp) {
     log_log("broadcast to %p\n", tmp);
-    send(((CIClient*)(tmp->data))->sock, &cmsg, sizeof(CINetMessage), 0);
+    if (send(((CIClient*)(tmp->data))->sock, &cmsg, sizeof(CINetMessage), 0) < sizeof(CINetMessage)) {
+        ((CIClient*)(tmp->data))->flags |= CISRV_CLIENT_REMOVE;
+    }
     tmp = g_slist_next(tmp);
   }
   g_mutex_unlock(&_cisrv_server.clist_lock);
+  _cisrv_remove_marked_clients();
   return 0;
 }
 

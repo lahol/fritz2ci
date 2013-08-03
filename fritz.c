@@ -8,6 +8,7 @@
 #include "netutils.h"
 #include "fritz.h"
 #include "logging.h"
+#include <errno.h>
 
 #define FRITZ_BUFFER_SIZE      1024
 
@@ -39,7 +40,7 @@ void * _fritz_listen_thread_proc(void * pdata);
 void _fritz_handle_net_up(CIFritzServer *srv);
 void _fritz_handle_net_down(CIFritzServer *srv);
 
-gboolean _fritz_try_reconnect(gpointer *data);
+gboolean _fritz_try_reconnect(CIFritzServer *srv);
 
 CIFritzServer _cifritz_server;
 
@@ -68,33 +69,36 @@ gint fritz_init(gchar *host, gushort port) {
   return 0;
 }
 
-gint fritz_connect(void) {
-  if (!(_cifritz_server.state & CIFritzServerStateInitialized)) {
-    return 4;
-  }
-  if (_cifritz_server.state & CIFritzServerStateConnected) {
-      return 0;
-  }
+gint fritz_connect(gboolean *connected) {
+    if (connected) *connected = FALSE;
+    if (!(_cifritz_server.state & CIFritzServerStateInitialized)) {
+        return 4;
+    }
+    if (_cifritz_server.state & CIFritzServerStateConnected) {
+        if (connected) *connected = TRUE;
+        return 0;
+    }
 
-  struct sockaddr_in srv;
-  _cifritz_server.sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (_cifritz_server.sock == -1) {
-    return 2;
-  }
-  
-  srv.sin_addr.s_addr = netutil_get_ip_address(_cifritz_server.host);
-  srv.sin_port = htons((gushort)_cifritz_server.port);
-  srv.sin_family = AF_INET;
-  
-  if (connect(_cifritz_server.sock, (const struct sockaddr*)&srv, sizeof(srv)) == 0) {
-      log_log("fritz: connected\n");
-      _cifritz_server.state |= CIFritzServerStateConnected;
-  }
-  else {
-      log_log("fritz: failed to connect\n");
-      netutil_close_fd(&_cifritz_server.sock);
-  }
-  return 0;
+    struct sockaddr_in srv;
+    _cifritz_server.sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (_cifritz_server.sock == -1) {
+        return 2;
+    }
+      
+    srv.sin_addr.s_addr = netutil_get_ip_address(_cifritz_server.host);
+    srv.sin_port = htons((gushort)_cifritz_server.port);
+    srv.sin_family = AF_INET;
+      
+    if (connect(_cifritz_server.sock, (const struct sockaddr*)&srv, sizeof(srv)) == 0) {
+        log_log("fritz: connected\n");
+        _cifritz_server.state |= CIFritzServerStateConnected;
+        if (connected) *connected = TRUE;
+    }
+    else {
+        log_log("fritz: failed to connect: %d (%s)\n", errno, strerror(errno));
+        netutil_close_fd(&_cifritz_server.sock);
+    }
+    return 0;
 }
 
 gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *)) {
@@ -140,12 +144,29 @@ gint fritz_cleanup(void) {
   return 0;
 }
 
+gboolean _fritz_try_reconnect(CIFritzServer *srv)
+{
+    gboolean connected;
+    fritz_connect(&connected);
+
+    if (srv && connected) {
+        write(srv->fdpipe[1], "add sock", 8);
+    }
+
+    return !connected;
+}
+
 void _fritz_handle_net_up(CIFritzServer *srv)
 {
     log_log("fritz: handle net up\n");
     if (srv->state & CIFritzServerStateConnected)
         return;
-    fritz_connect();
+    gboolean connected;
+    fritz_connect(&connected);
+
+    if (!connected) {
+        g_timeout_add_seconds(10, (GSourceFunc)_fritz_try_reconnect, (gpointer)srv);
+    }
 }
 
 void _fritz_handle_net_down(CIFritzServer *srv)
@@ -163,13 +184,7 @@ void * _fritz_listen_thread_proc(void * pdata) {
   
   fd_set rfds;
   int max;
-/*  max = _cifritz_server.sock;
-  if (max < _cifritz_server.fdpipe[0])
-    max = _cifritz_server.fdpipe[0];
-  if (max < _cifritz_server.netlink)
-    max = _cifritz_server.netlink;
-  ++max;*/
-  
+ 
   CIFritzCallMsg cmsg;
 
   NetutilCallbacks nu_cb = {
@@ -178,11 +193,6 @@ void * _fritz_listen_thread_proc(void * pdata) {
   };
   
   while (1) {
-/*    FD_ZERO(&rfds);
-    FD_SET(_cifritz_server.sock, &rfds);
-    FD_SET(_cifritz_server.fdpipe[0], &rfds);
-    FD_SET(_cifritz_server.netlink, &rfds);*/
-
        max = netutil_init_fd_set(&rfds, 3,
                _cifritz_server.sock,
                _cifritz_server.fdpipe[0],
@@ -208,13 +218,18 @@ void * _fritz_listen_thread_proc(void * pdata) {
         log_log("fritz: lost connection, trying to reconnect\n");
         _cifritz_server.state &= ~CIFritzServerStateConnected;
         netutil_close_fd(&_cifritz_server.sock);
-        return NULL;
       }
     }
     
     if (FD_ISSET(_cifritz_server.fdpipe[0], &rfds)) {
-      log_log("received terminating signal\n");
-      return NULL;
+        bytes = read(_cifritz_server.fdpipe[0], buffer, FRITZ_BUFFER_SIZE-1);
+        if (bytes) {
+            if (!strncmp(buffer, "disconnect", bytes > 10 ? 10 : bytes)) {
+                log_log("received terminating signal\n");
+                _cifritz_server.state &= ~CIFritzServerStateListening;
+                return NULL;
+            }
+        }
     }
 
     if (FD_ISSET(_cifritz_server.netlink, &rfds)) {
