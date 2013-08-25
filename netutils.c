@@ -2,6 +2,9 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <ifaddrs.h>
 #include <memory.h>
 #include "logging.h"
 #include <stdarg.h>
@@ -24,6 +27,46 @@ in_addr_t netutil_get_ip_address(const gchar * hostname)
   else {
     return addr.sin_addr.s_addr;
   }
+}
+
+int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname)
+{
+    struct sockaddr_in sa;
+    socklen_t sa_len;
+    struct ifaddrs *ifap = NULL, *cur = NULL;
+
+    char addr[32];
+    struct ifreq req;
+
+    memset(&sa, 0, sizeof(struct sockaddr));
+    sa_len = sizeof(struct sockaddr_in);
+
+    if (getsockname(sock, (struct sockaddr*)&sa, &sa_len) != 0) {
+        return -1;
+    }
+    
+    strcpy(addr, inet_ntoa(sa.sin_addr));
+
+    if (getifaddrs(&ifap) != 0) {
+        return -1;
+    }
+
+    for (cur = ifap; cur; cur = cur->ifa_next) {
+        if (cur->ifa_addr->sa_family == AF_INET) {
+            if (strcmp(addr, inet_ntoa(((struct sockaddr_in*)cur->ifa_addr)->sin_addr)) == 0) {
+                memset(&req, 0, sizeof(struct ifreq));
+                strcpy(req.ifr_name, cur->ifa_name);
+                ioctl(sock, SIOCGIFINDEX, &req);
+                if (ifindex) *ifindex = req.ifr_ifindex;
+                if (ifname) strcpy(ifname, cur->ifa_name);
+                break;
+            }
+        }
+    }
+
+    freeifaddrs(ifap);
+
+    return 0;
 }
 
 int netutil_init_fd_set(fd_set *set, int nfd, ...)
@@ -158,11 +201,11 @@ void _netutil_netlink_handle_newlink(struct nlmsghdr *h, NetutilCallbacks *cb, v
 
     if (state == IF_OPER_DOWN) {
         log_log("Network %s down, invoke net down handler\n", ifname);
-        if (cb && cb->net_down) cb->net_down(data);
+        if (cb && cb->net_down) cb->net_down(iface->ifi_index, ifname, data);
     }
     else if (state == IF_OPER_UP) {
         log_log("Network %s up, invoke net up handler\n", ifname);
-        if (cb && cb->net_up) cb->net_up(data);
+        if (cb && cb->net_up) cb->net_up(iface->ifi_index, ifname, data);
     }
 }
 

@@ -26,6 +26,7 @@ typedef struct _CIFritzServer {
   gushort state;
   int sock;
   int netlink;
+  int assoc_ifindex;
   int fdpipe[2];
   GThread * thread;
 } CIFritzServer;
@@ -37,8 +38,8 @@ gint _fritz_parse_notification(const gchar * notify, CIFritzCallMsg * cmsg);
 void * _fritz_listen_thread_proc(void * pdata);
 
 /* callbacks for netlink messages */
-void _fritz_handle_net_up(CIFritzServer *srv);
-void _fritz_handle_net_down(CIFritzServer *srv);
+void _fritz_handle_net_up(int ifindex, char *ifname, CIFritzServer *srv);
+void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv);
 
 gboolean _fritz_try_reconnect(CIFritzServer *srv);
 
@@ -69,7 +70,10 @@ gint fritz_init(gchar *host, gushort port) {
   return 0;
 }
 
-gint fritz_connect(gboolean *connected) {
+gint fritz_connect(gboolean *connected)
+{
+    char ifname[IF_NAMESIZE];
+
     if (connected) *connected = FALSE;
     if (!(_cifritz_server.state & CIFritzServerStateInitialized)) {
         return 4;
@@ -90,7 +94,10 @@ gint fritz_connect(gboolean *connected) {
     srv.sin_family = AF_INET;
       
     if (connect(_cifritz_server.sock, (const struct sockaddr*)&srv, sizeof(srv)) == 0) {
-        log_log("fritz: connected\n");
+        if (netutil_get_interface_from_sock(_cifritz_server.sock, &_cifritz_server.assoc_ifindex, ifname) != 0) {
+            log_log("fritz: could not determine associated interface\n");
+        }
+        log_log("fritz: connected via %s (%d)\n", ifname, _cifritz_server.assoc_ifindex);
         _cifritz_server.state |= CIFritzServerStateConnected;
         if (connected) *connected = TRUE;
     }
@@ -156,7 +163,7 @@ gboolean _fritz_try_reconnect(CIFritzServer *srv)
     return !connected;
 }
 
-void _fritz_handle_net_up(CIFritzServer *srv)
+void _fritz_handle_net_up(int ifindex, char *ifname, CIFritzServer *srv)
 {
     log_log("fritz: handle net up\n");
     if (srv->state & CIFritzServerStateConnected)
@@ -169,11 +176,16 @@ void _fritz_handle_net_up(CIFritzServer *srv)
     }
 }
 
-void _fritz_handle_net_down(CIFritzServer *srv)
+void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv)
 {
-    log_log("fritz: handle net down\n");
-    netutil_close_fd(&srv->sock);
-    srv->state &= ~CIFritzServerStateConnected;
+    log_log("fritz: handle net down: %s (%d)\n", ifname, ifindex);
+    if (ifindex == _cifritz_server.assoc_ifindex) {
+        netutil_close_fd(&srv->sock);
+        srv->state &= ~CIFritzServerStateConnected;
+    }
+    else {
+        log_log("fritz: still connected via %d, ignoring\n", _cifritz_server.assoc_ifindex);
+    }
 }
 
 void * _fritz_listen_thread_proc(void * pdata) {
