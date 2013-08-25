@@ -13,7 +13,7 @@
  */
 #define CIDBMSG_CMD_REGISTER            0x01
 
-/** @brief Retrieve a list of callers for a user 
+/** @brief Retrieve a list of callers for a user
  *
  *  query: [Header] [ushort userid] [string filter] !!filter is new
  *  resp : [Header] [ushort errcode] [table]
@@ -28,14 +28,14 @@
 #define CIDBMSG_CMD_READ_CALLER         0x03
 
 /** @brief Add or update a caller in the list
- * 
+ *
  *  query: [Header] [ushort userid] [ushort flags] [table]
  *  resp : [Header] [ushort errcode] [ulong id]
  */
 #define CIDBMSG_CMD_WRITE_CALLER        0x04
 
 /** @brief Write call information to the list
- * 
+ *
  *  query: [Header] [table]
  *  resp : [Header] [ushort errcode] [ulong id]
  */
@@ -62,15 +62,15 @@
  */
 #define CIDBMSG_CMD_DESCRIBE_TABLE      0x08
 
-/** @brief 
- * 
+/** @brief
+ *
  *  query: [Header] [ushort userid] [ushort nstrings=2] [string number] [string name]
  *  resp : [Header] [ushort errcode]
  */
 #define CIDBMSG_CMD_DELETE_CALLER       0x09
 
 /** @brief
- *  
+ *
  *  query: [Header]
  *  resp : [Header] [ushort errcode] [ulong numentries]
  */
@@ -87,20 +87,23 @@
 #define CIDBMSG_SUBCMD_QUERY            0x80
 #define CIDBMSG_SUBCMD_RESP             0x81
 
-static inline void _cidb_set_uchar(void * dst, int off, unsigned short val) {
-  ((unsigned char*)dst)[off  ] = val & 0xff;
+static inline void _cidb_set_uchar(void *dst, int off, unsigned short val)
+{
+    ((unsigned char *)dst)[off  ] = val & 0xff;
 }
 
-static inline void _cidb_set_ushort(void * dst, int off, unsigned short val) {
-  ((unsigned char*)dst)[off  ] = val & 0xff;
-  ((unsigned char*)dst)[off+1] = (val >> 8) & 0xff;
+static inline void _cidb_set_ushort(void *dst, int off, unsigned short val)
+{
+    ((unsigned char *)dst)[off  ] = val & 0xff;
+    ((unsigned char *)dst)[off+1] = (val >> 8) & 0xff;
 }
 
-static inline void _cidb_set_ulong(void * dst, int off, unsigned int val) {
-  ((unsigned char*)dst)[off  ] = val & 0xff;
-  ((unsigned char*)dst)[off+1] = (val >> 8) & 0xff;
-  ((unsigned char*)dst)[off+2] = (val >> 16) & 0xff;
-  ((unsigned char*)dst)[off+3] = (val >> 24) & 0xff;
+static inline void _cidb_set_ulong(void *dst, int off, unsigned int val)
+{
+    ((unsigned char *)dst)[off  ] = val & 0xff;
+    ((unsigned char *)dst)[off+1] = (val >> 8) & 0xff;
+    ((unsigned char *)dst)[off+2] = (val >> 16) & 0xff;
+    ((unsigned char *)dst)[off+3] = (val >> 24) & 0xff;
 }
 
 #define CIDB_SET_UCHAR(dst, off, val) _cidb_set_uchar(dst, off, val)
@@ -114,24 +117,24 @@ static inline void _cidb_set_ulong(void * dst, int off, unsigned int val) {
 
 
 typedef struct _CIDBMsgHeader {
-  unsigned short int ClientId;     /**< The client identifier of the connection */
-  unsigned char msgCommand;        /**< The command of the message */
-  unsigned char msgSubcommand;     /**< The subcommand of the message */
-  unsigned int msgId;         /**< The message identifier */
-  unsigned short int msgFlags;     /**< The flags concerning the message */
-  unsigned int dataSize;      /**< The total size of the data */
-  unsigned int partSize;      /**< The size of the data in the current package */
-  unsigned int offset;        /**< The offset of the part in the total message */
+    unsigned short int ClientId;     /**< The client identifier of the connection */
+    unsigned char msgCommand;        /**< The command of the message */
+    unsigned char msgSubcommand;     /**< The subcommand of the message */
+    unsigned int msgId;         /**< The message identifier */
+    unsigned short int msgFlags;     /**< The flags concerning the message */
+    unsigned int dataSize;      /**< The total size of the data */
+    unsigned int partSize;      /**< The size of the data in the current package */
+    unsigned int offset;        /**< The offset of the part in the total message */
 } CIDBMsgHeader;
 
 typedef struct _CIDBMsg {
-  CIDBMsgHeader header;
-  unsigned char * data;
+    CIDBMsgHeader header;
+    unsigned char *data;
 } CIDBMsg;
 
 typedef struct _CIDBMsgTransmission {
-  CIDBMsg * completeMsg;
-  unsigned int offset;
+    CIDBMsg *completeMsg;
+    unsigned int offset;
 } CIDBMsgTransmission;
 
 
@@ -159,50 +162,50 @@ typedef struct _CIDBMsgTransmission {
 #define CIDBMSG_HEADER_GET_OFFSET(h)             CIDB_GET_ULONG(h, 18)
 
 typedef struct _CIDBTable {
-  unsigned short int nrows;
-  unsigned short int ncols;
-  unsigned char ** column_names;
-  unsigned char ** fields;
+    unsigned short int nrows;
+    unsigned short int ncols;
+    unsigned char **column_names;
+    unsigned char **fields;
 } CIDBTable;
 
 typedef struct _CIDBMessage {
-  unsigned char cmd;
-  unsigned char subcmd;
-  unsigned int msgid;
-  unsigned short int clientid;
-  unsigned short int errcode;
-  unsigned short int userid;
-  unsigned int flags;
-  unsigned short nstrings;
-  unsigned char ** stringlist;
-  CIDBTable table;
-  unsigned int index;
-  unsigned int offset;
-  unsigned short int count;
-  unsigned int mask;
-  unsigned int maxentries;
+    unsigned char cmd;
+    unsigned char subcmd;
+    unsigned int msgid;
+    unsigned short int clientid;
+    unsigned short int errcode;
+    unsigned short int userid;
+    unsigned int flags;
+    unsigned short nstrings;
+    unsigned char **stringlist;
+    CIDBTable table;
+    unsigned int index;
+    unsigned int offset;
+    unsigned short int count;
+    unsigned int mask;
+    unsigned int maxentries;
 } CIDBMessage;
 
-unsigned int cidbmsg_prepare_header(unsigned char * dst, CIDBMsgHeader * header);
-unsigned int cidbmsg_read_header(CIDBMsgHeader * header, unsigned char * src);
-unsigned int cidbmsg_read_table(unsigned char * msg, CIDBTable * table);
-unsigned int cidbmsg_table_get_size(CIDBTable * table);
-unsigned int cidbmsg_write_table(unsigned char * msg, CIDBTable * table);
-unsigned int cidbmsg_write_string(unsigned char * msg, unsigned char * str);
-unsigned int cidbmsg_read_string(unsigned char * msg, unsigned char ** str);
+unsigned int cidbmsg_prepare_header(unsigned char *dst, CIDBMsgHeader *header);
+unsigned int cidbmsg_read_header(CIDBMsgHeader *header, unsigned char *src);
+unsigned int cidbmsg_read_table(unsigned char *msg, CIDBTable *table);
+unsigned int cidbmsg_table_get_size(CIDBTable *table);
+unsigned int cidbmsg_write_table(unsigned char *msg, CIDBTable *table);
+unsigned int cidbmsg_write_string(unsigned char *msg, unsigned char *str);
+unsigned int cidbmsg_read_string(unsigned char *msg, unsigned char **str);
 
-unsigned int cidbmsg_transmission_start(unsigned char * part, CIDBMsgTransmission * msg);
-unsigned int cidbmsg_transmission_continue(unsigned char * part, CIDBMsgTransmission * msg);
+unsigned int cidbmsg_transmission_start(unsigned char *part, CIDBMsgTransmission *msg);
+unsigned int cidbmsg_transmission_continue(unsigned char *part, CIDBMsgTransmission *msg);
 
 void cidbmsg_mkmessage(unsigned short int clientid,
-                                     unsigned char command, 
-                                     unsigned char subcommand, 
-                                     unsigned int msgid,
-                                     CIDBMsgHeader * header);
+                       unsigned char command,
+                       unsigned char subcommand,
+                       unsigned int msgid,
+                       CIDBMsgHeader *header);
 
-unsigned int cidbmsg_write_message(CIDBMessage * dbmsg, CIDBMsg * msg);
-void cidbmsg_read_message(CIDBMsg * msg, CIDBMessage * dbmsg);
+unsigned int cidbmsg_write_message(CIDBMessage *dbmsg, CIDBMsg *msg);
+void cidbmsg_read_message(CIDBMsg *msg, CIDBMessage *dbmsg);
 
-void cidbmsg_table_free(CIDBTable * table);
+void cidbmsg_table_free(CIDBTable *table);
 
 #endif

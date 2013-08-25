@@ -12,24 +12,24 @@
 /** @brief Areacode with area
  */
 typedef struct _CIAreaCode {
-  char acCode[16];  /**< the area code */
-  char acArea[64];  /**< the area name */
+    char acCode[16];  /**< the area code */
+    char acArea[64];  /**< the area name */
 } CIAreaCode;
 
 
 /** @brief Tree node for the area codes
- *  
+ *
  *  Each node has 10 children or contains a area if there is an assignment for that number
  */
 typedef struct _CIAreaCodeTree CIAreaCodeTree;
 struct _CIAreaCodeTree {
-  CIAreaCodeTree * child[10];  /**< the children of this node */
-  CIAreaCode * data;            /**< the data or NULL */
+    CIAreaCodeTree *child[10];   /**< the children of this node */
+    CIAreaCode *data;             /**< the data or NULL */
 };
 
 void ci_init_area_codes(void);
-int ci_read_area_codes_from_file(char * filename);
+int ci_read_area_codes_from_file(char *filename);
 void ci_free_area_codes(void);
-int ci_get_area_code(char * numComplete, char * numAreaCode, char * numNumber, char * strArea);
+int ci_get_area_code(char *numComplete, char *numAreaCode, char *numNumber, char *strArea);
 
 #endif

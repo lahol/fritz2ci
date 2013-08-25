@@ -10,23 +10,23 @@
 #include <stdarg.h>
 #include <errno.h>
 
-in_addr_t netutil_get_ip_address(const gchar * hostname)
+in_addr_t netutil_get_ip_address(const gchar *hostname)
 {
-  struct sockaddr_in addr;
-  struct hostent *host;
-  
-  addr.sin_addr.s_addr = inet_addr(hostname);
-  if (addr.sin_addr.s_addr == INADDR_NONE) {
-    host = gethostbyname(hostname);
-    if (!host) {
-      return INADDR_NONE;
+    struct sockaddr_in addr;
+    struct hostent *host;
+
+    addr.sin_addr.s_addr = inet_addr(hostname);
+    if (addr.sin_addr.s_addr == INADDR_NONE) {
+        host = gethostbyname(hostname);
+        if (!host) {
+            return INADDR_NONE;
+        }
+        addr.sin_addr = *(struct in_addr *)host->h_addr_list[0];
+        return addr.sin_addr.s_addr;
     }
-    addr.sin_addr = *(struct in_addr*)host->h_addr_list[0];
-    return addr.sin_addr.s_addr;
-  }
-  else {
-    return addr.sin_addr.s_addr;
-  }
+    else {
+        return addr.sin_addr.s_addr;
+    }
 }
 
 int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname)
@@ -41,10 +41,10 @@ int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname)
     memset(&sa, 0, sizeof(struct sockaddr));
     sa_len = sizeof(struct sockaddr_in);
 
-    if (getsockname(sock, (struct sockaddr*)&sa, &sa_len) != 0) {
+    if (getsockname(sock, (struct sockaddr *)&sa, &sa_len) != 0) {
         return -1;
     }
-    
+
     strcpy(addr, inet_ntoa(sa.sin_addr));
 
     if (getifaddrs(&ifap) != 0) {
@@ -53,7 +53,7 @@ int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname)
 
     for (cur = ifap; cur; cur = cur->ifa_next) {
         if (cur->ifa_addr->sa_family == AF_INET) {
-            if (strcmp(addr, inet_ntoa(((struct sockaddr_in*)cur->ifa_addr)->sin_addr)) == 0) {
+            if (strcmp(addr, inet_ntoa(((struct sockaddr_in *)cur->ifa_addr)->sin_addr)) == 0) {
                 memset(&req, 0, sizeof(struct ifreq));
                 strcpy(req.ifr_name, cur->ifa_name);
                 ioctl(sock, SIOCGIFINDEX, &req);
@@ -144,26 +144,26 @@ int wait_for_bind(int sock, const struct sockaddr *addr, socklen_t addrlen, int 
 
 int netutil_init_netlink(void)
 {
-  struct sockaddr_nl addr;
-  int sock;
-  
-  if ((sock = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) == -1) {
-    log_log("netlink: init socket failed\n");
-    return -1;
-  }
+    struct sockaddr_nl addr;
+    int sock;
 
-  memset(&addr, 0, sizeof(addr));
-  addr.nl_family = AF_NETLINK;
-  addr.nl_pid = getpid(); /* see http://www.linuxjournal.com/article/7356?page=0,1 */
-  addr.nl_groups = /*RTMGRP_IPV4_IFADDR |*/ RTMGRP_LINK;
+    if ((sock = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) == -1) {
+        log_log("netlink: init socket failed\n");
+        return -1;
+    }
 
-  if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-    log_log("netlink: bind failed\n");
-    return -1;
-  }
+    memset(&addr, 0, sizeof(addr));
+    addr.nl_family = AF_NETLINK;
+    addr.nl_pid = getpid(); /* see http://www.linuxjournal.com/article/7356?page=0,1 */
+    addr.nl_groups = /*RTMGRP_IPV4_IFADDR |*/ RTMGRP_LINK;
 
-  log_log("netlink: sock=%d\n", sock);
-  return sock;
+    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+        log_log("netlink: bind failed\n");
+        return -1;
+    }
+
+    log_log("netlink: sock=%d\n", sock);
+    return sock;
 }
 
 enum IfOperstate {
@@ -191,10 +191,10 @@ void _netutil_netlink_handle_newlink(struct nlmsghdr *h, NetutilCallbacks *cb, v
     for (attr = IFLA_RTA(iface); RTA_OK(attr, len); attr = RTA_NEXT(attr, len)) {
         switch (attr->rta_type) {
             case IFLA_IFNAME:
-                strcpy(ifname, (char*)RTA_DATA(attr));
+                strcpy(ifname, (char *)RTA_DATA(attr));
                 break;
             case IFLA_OPERSTATE:
-                state = *(int*)RTA_DATA(attr);
+                state = *(int *)RTA_DATA(attr);
                 break;
         }
     }
@@ -215,7 +215,7 @@ void netutil_handle_netlink_message(int nlsock, NetutilCallbacks *cb, void *data
     int len;
     struct nlmsghdr *nlh;
 
-    nlh = (struct nlmsghdr*)buffer;
+    nlh = (struct nlmsghdr *)buffer;
 
     while ((len = recv(nlsock, nlh, 4096, MSG_DONTWAIT)) >= 1) {
         while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
@@ -228,7 +228,7 @@ void netutil_handle_netlink_message(int nlsock, NetutilCallbacks *cb, void *data
             }
             nlh = NLMSG_NEXT(nlh, len);
         }
-        nlh = (struct nlmsghdr*)buffer;
+        nlh = (struct nlmsghdr *)buffer;
     }
 }
 

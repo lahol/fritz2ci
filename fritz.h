@@ -9,17 +9,17 @@
 #define CALLMSGTYPE_DISCONNECT          3
 
 typedef struct _CIFritzCallMsg {
-  gushort msgtype;
-  gushort connectionid;
-  gushort nst;
-  char calling_number[32];
-  char called_number[32];
-  char number[32];
-  gulong duration;
-  struct tm datetime;
+    gushort msgtype;
+    gushort connectionid;
+    gushort nst;
+    char calling_number[32];
+    char called_number[32];
+    char number[32];
+    gulong duration;
+    struct tm datetime;
 } CIFritzCallMsg;
 
-gint fritz_init(gchar * host, gushort port);
+gint fritz_init(gchar *host, gushort port);
 gint fritz_connect(gboolean *connected);
 gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *));
 gint fritz_disconnect(void);

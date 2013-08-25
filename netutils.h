@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <glib.h>
 
-in_addr_t netutil_get_ip_address(const gchar * hostname);
+in_addr_t netutil_get_ip_address(const gchar *hostname);
 int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname);
 
 int netutil_init_fd_set(fd_set *set, int nfd, ...);

@@ -5,8 +5,8 @@
 #include "CIData.h"
 
 gint dbhandler_init(void);
-gint dbhandler_connect(gchar * host, gushort port);
-gint dbhandler_add_data(CIDataSet * data);
+gint dbhandler_connect(gchar *host, gushort port);
+gint dbhandler_add_data(CIDataSet *data);
 void dbhandler_disconnect(void);
 void dbhandler_cleanup(void);
 
