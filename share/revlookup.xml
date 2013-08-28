@@ -16,4 +16,14 @@
       <field pos="1">FIELD_STREET</field>
     </pattern>
   </source>
+  <source id="2">
+    <description>Das Örtliche test</description>
+    <query linehandling="split">http://www1.dasoertliche.de/Controller?form_name=search_inv&amp;ph=%NUMBER%</query>
+    <pattern expression='\s*var\s*data\s*=\s*getItemData\(&apos;[^&apos;]*&apos;,\s*&apos;[^&apos;]*&apos;,\s*&apos;[^&apos;]*&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;[^)]*\);\s*'>
+      <field pos="1">FIELD_POSTALCODE</field>
+      <field pos="2">FIELD_CITY</field>
+      <field pos="3">FIELD_NAME</field>
+      <field pos="4">FIELD_STREET</field>
+    </pattern>
+   </source>
 </cirevlookupsources>
