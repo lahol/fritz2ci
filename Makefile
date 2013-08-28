@@ -1,5 +1,5 @@
-LIBDIRS = -L/usr/local/lib `pkg-config --libs glib-2.0 gthread-2.0` `curl-config --libs` `xml2-config --libs`
-INCDIRS = -I/usr/include `pkg-config --cflags glib-2.0` `curl-config --cflags` `xml2-config --cflags`
+LIBDIRS = -L/usr/local/lib `pkg-config --libs glib-2.0 gthread-2.0 json-glib-1.0` `curl-config --libs` `xml2-config --libs`
+INCDIRS = -I/usr/include `pkg-config --cflags glib-2.0 json-glib-1.0` `curl-config --cflags` `xml2-config --cflags`
 
 CC = gcc
 CFLAGS = -Wall $(COMPILERFLAGS) $(INCDIRS) -O1
@@ -24,7 +24,7 @@ all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o .
 	lookup.c \
 	msn_lookup.c \
 	daemon.c \
-	$(LIBDIRS) $(LIBS)
+	$(LIBDIRS) $(LIBS) -lcinet
 
 clean:
 	rm *.o

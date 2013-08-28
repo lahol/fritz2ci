@@ -15,6 +15,7 @@
 #include "logging.h"
 #include "netutils.h"
 #include <errno.h>
+#include <cinet.h>
 
 typedef enum {
     CISrvStateUninitialized = 0,
@@ -25,9 +26,18 @@ typedef enum {
 
 #define CISRV_CLIENT_REMOVE              1 << 0
 
+#define CI_MAKE_VERSION(maj, min, pat) (((maj) << 16 | (min) << 8 | (pat)) & 0x00ffffff)
+#define CI_VERSION_MAJ(ver) (((ver) >> 16) & 0x000000ff)
+#define CI_VERSION_MIN(ver) (((ver) >> 8) & 0x000000ff)
+#define CI_VERSION_PAT(ver) ((ver) & 0x000000ff)
+#define CI_CHECK_VERSION(ver, min) (CI_VERSION_MAJ(ver) >= CI_VERSION_MAJ(min) &&\
+            CI_VERSION_MIN(ver) >= CI_VERSION_MIN(min) &&\
+            CI_VERSION_PAT(ver) >= CI_VERSION_PAT(min))
+
 typedef struct _CIClient {
     int sock;
     gulong flags;
+    guint32 version;
 } CIClient;
 
 typedef struct _CIServer {
@@ -51,6 +61,8 @@ void _cisrv_add_client(int sock);
 void _cisrv_remove_client(int sock);
 void _cisrv_remove_marked_clients(void);
 void _cisrv_close_all_clients(void);
+
+void _cisrv_handle_client_message(CIClient *client);
 
 void *_cisrv_listen_thread_proc(void *pdata);
 
@@ -104,7 +116,6 @@ void *_cisrv_listen_thread_proc(void *pdata)
     int max;
     int newsock;
     GSList *tmp;
-    char buffer[256];
 
     memset(&addr, 0, sizeof(struct sockaddr_in));
     addr.sin_family = AF_INET;
@@ -156,10 +167,7 @@ void *_cisrv_listen_thread_proc(void *pdata)
         tmp = _cisrv_server.clientlist;
         while (tmp) {
             if (FD_ISSET(((CIClient *)tmp->data)->sock, &fdSet)) {
-                rc = recv(((CIClient *)tmp->data)->sock, buffer, 255, 0);
-                if (rc == 0 || rc == -1) {
-                    ((CIClient *)tmp->data)->flags |= CISRV_CLIENT_REMOVE;
-                }
+                _cisrv_handle_client_message((CIClient*)tmp->data);
             }
             tmp = g_slist_next(tmp);
         }
@@ -173,6 +181,111 @@ void *_cisrv_listen_thread_proc(void *pdata)
     }
 }
 
+gint cisrv_send_message(CIClient *client, gchar *buffer, gsize len)
+{
+    if (!client)
+        return -1;
+
+    send(client->sock, buffer, len, 0);
+    return 0;
+}
+
+void _cisrv_handle_client_message_version(CIClient *client, CINetMsgVersion *msg)
+{
+    CINetMsg *reply = NULL;
+    log_log("Client reports itself as %d.%d.%d (%s)\n",
+            ((CINetMsgVersion*)msg)->major,
+            ((CINetMsgVersion*)msg)->minor,
+            ((CINetMsgVersion*)msg)->patch,
+            ((CINetMsgVersion*)msg)->human_readable);
+    client->version = CI_MAKE_VERSION(
+            ((CINetMsgVersion*)msg)->major,
+            ((CINetMsgVersion*)msg)->minor,
+            ((CINetMsgVersion*)msg)->patch);
+
+    reply = cinet_message_new(CI_NET_MSG_VERSION,
+            "major", 3, "minor", 0, "patch", 0, NULL, NULL);
+
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    cinet_msg_write_msg(&msgdata, &msglen, reply);
+
+    cisrv_send_message(client, msgdata, msglen);
+}
+
+void _cisrv_handle_client_message_leave(CIClient *client, CINetMsgLeave *msg)
+{
+    log_log("Client wants to leave\n");
+    client->flags |= CISRV_CLIENT_REMOVE;
+    CINetMsg *reply = NULL;
+    reply = cinet_message_new(CI_NET_MSG_LEAVE, NULL, NULL);
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    cinet_msg_write_msg(&msgdata, &msglen, reply);
+
+    cisrv_send_message(client, msgdata, msglen);
+}
+
+void _cisrv_handle_client_message(CIClient *client)
+{
+    char buffer[32];
+    CINetMsgHeader header;
+    ssize_t rc = recv(client->sock, buffer, CINET_HEADER_LENGTH, 0);
+    if (rc == 0 || rc == -1) {
+        client->flags |= CISRV_CLIENT_REMOVE;
+        log_log("error: rc=%d\n", rc);
+        return;
+    }
+
+    if (cinet_msg_read_header(&header, buffer, rc) < CINET_HEADER_LENGTH) {
+        /* read everything left */
+        log_log("header not complete\n");
+        while (recv(client->sock, buffer, 32, MSG_DONTWAIT) > 0);
+        return;
+    }
+
+    char *msgdata = malloc(CINET_HEADER_LENGTH + header.msglen);
+    if (!msgdata) {
+        log_log("no msg data\n");
+        return;
+    }
+
+    memcpy(msgdata, buffer, CINET_HEADER_LENGTH);
+
+    ssize_t bytes_read = 0;
+    while (bytes_read < header.msglen) {
+        rc = recv(client->sock, &msgdata[CINET_HEADER_LENGTH + bytes_read], header.msglen-bytes_read, MSG_DONTWAIT);
+        if (rc <= 0) {
+            client->flags |= CISRV_CLIENT_REMOVE;
+            log_log("could not read rest of message\n");
+            return;
+        }
+
+        bytes_read += rc;
+    }
+
+    CINetMsg *msg = NULL;
+    if (cinet_msg_read_msg(&msg, msgdata, bytes_read + CINET_HEADER_LENGTH) == 0) {
+        switch (msg->msgtype) {
+            case CI_NET_MSG_VERSION:
+                _cisrv_handle_client_message_version(client, (CINetMsgVersion*)msg);
+                break;
+            case CI_NET_MSG_LEAVE:
+                _cisrv_handle_client_message_leave(client, (CINetMsgLeave*)msg);
+                break;
+            default:
+                log_log("unhandled message from client: %d\n", msg->msgtype);
+                break;
+        }
+    }
+    else {
+        log_log("error converting message\n");
+    }
+    cinet_msg_free(msg);
+}
+
 gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data)
 {
     GSList *tmp;
@@ -181,32 +294,88 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data)
     if (data) {
         memcpy(&cmsg.msgData, data, sizeof(CIDataSet));
     }
+
+    CINetMsg *msg = NULL;
+    if (data && (msgtype == CI2ServerMsgMessage || msgtype == CI2ServerMsgUpdate ||
+                msgtype == CI2ServerMsgComplete)) {
+        msg = cinet_message_new(CI_NET_MSG_EVENT_RING, NULL, NULL);
+        cinet_message_set_value(msg, "completenumber", data->cidsNumberComplete[0] ?
+                data->cidsNumberComplete : NULL);
+        cinet_message_set_value(msg, "number", data->cidsNumber[0] ?
+                data->cidsNumber : NULL);
+        cinet_message_set_value(msg, "name", data->cidsName[0] ?
+                data->cidsName : NULL);
+        cinet_message_set_value(msg, "date", data->cidsDate[0] ?
+                data->cidsDate : NULL);
+        cinet_message_set_value(msg, "time", data->cidsTime[0] ?
+                data->cidsTime : NULL);
+        cinet_message_set_value(msg, "msn", data->cidsMSN[0] ?
+                data->cidsMSN : NULL);
+        cinet_message_set_value(msg, "alias", data->cidsAlias[0] ?
+                data->cidsAlias : NULL);
+        cinet_message_set_value(msg, "area", data->cidsArea[0] ?
+                data->cidsArea : NULL);
+        cinet_message_set_value(msg, "areacode", data->cidsAreaCode[0] ?
+                data->cidsAreaCode : NULL);
+    }
+    else if (msgtype == CI2ServerMsgDisconnect) {
+        msg = cinet_message_new(CI_NET_MSG_SHUTDOWN, NULL, NULL);
+    }
+
     switch (msgtype) {
         case CI2ServerMsgMessage:
             cmsg.msgCode = 'm';
+            cinet_message_set_value(msg, "stage", GINT_TO_POINTER(MultipartStageInit));
             break;
         case CI2ServerMsgUpdate:
             cmsg.msgCode = 'u';
+            cinet_message_set_value(msg, "stage", GINT_TO_POINTER(MultipartStageUpdate));
             break;
         case CI2ServerMsgDisconnect:
             cmsg.msgCode = 'd';
             break;
         case CI2ServerMsgComplete:
             cmsg.msgCode = 'c';
+            cinet_message_set_value(msg, "stage", GINT_TO_POINTER(MultipartStageComplete));
             break;
         default:
             return 1;
     }
+
+    gchar *msgdata = NULL;
+    gsize len = 0;
+    gssize bytes_written , rc;
+
+    cinet_msg_write_msg(&msgdata, &len, msg);
+    cinet_msg_free(msg);
+
     g_mutex_lock(&_cisrv_server.clist_lock);
     tmp = _cisrv_server.clientlist;
     while (tmp) {
         log_log("broadcast to %p\n", tmp);
-        if (send(((CIClient *)(tmp->data))->sock, &cmsg, sizeof(CINetMessage), 0) < sizeof(CINetMessage)) {
-            ((CIClient *)(tmp->data))->flags |= CISRV_CLIENT_REMOVE;
+        bytes_written = 0;
+        if (CI_CHECK_VERSION(((CIClient*)(tmp->data))->version, CI_MAKE_VERSION(3,0,0))) {
+            while (bytes_written < len) {
+                rc = send(((CIClient*)(tmp->data))->sock, &msgdata[bytes_written],
+                        len - bytes_written, 0);
+                if (rc <= 0) {
+                    ((CIClient*)tmp->data)->flags |= CISRV_CLIENT_REMOVE;
+                    break;
+                }
+                bytes_written += rc;
+            }
+        }
+        else {
+            if (send(((CIClient *)(tmp->data))->sock, &cmsg, sizeof(CINetMessage), 0) < sizeof(CINetMessage)) {
+                ((CIClient *)(tmp->data))->flags |= CISRV_CLIENT_REMOVE;
+            }
         }
         tmp = g_slist_next(tmp);
     }
     g_mutex_unlock(&_cisrv_server.clist_lock);
+
+    g_free(msgdata);
+
     _cisrv_remove_marked_clients();
     return 0;
 }
@@ -272,6 +441,7 @@ void _cisrv_remove_marked_clients(void)
     while (tmp) {
         next = g_slist_next(tmp);
         if (((CIClient *)tmp->data)->flags & CISRV_CLIENT_REMOVE) {
+            log_log("removing client %d\n", ((CIClient*)tmp->data)->sock);
             close(((CIClient *)tmp->data)->sock);
             g_free((CIClient *)tmp->data);
             _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, tmp->data);
@@ -287,6 +457,8 @@ void _cisrv_add_client(int sock)
     CIClient *cl = g_malloc0(sizeof(CIClient));
     log_log("cisrv_add_client\n");
     cl->sock = sock;
+    /* assume that client version is at least 2.0.0 until we receive a version message */
+    cl->version = CI_MAKE_VERSION(2,0,0);
     /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
     g_mutex_lock(&_cisrv_server.clist_lock);
     _cisrv_server.clientlist = g_slist_append(_cisrv_server.clientlist, (gpointer)cl);
