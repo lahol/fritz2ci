@@ -29,10 +29,18 @@ all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o .
 clean:
 	rm *.o
 	
-install:
+install-bin:
 	mkdir -p /var/callerinfo
-	mkdir -p /usr/share/callerinfo
 	install ./bin/fritz2ci ${PREFIX}/bin
 #	cp fritz2ci-base.conf /etc/fritz2ci.conf
 #	cp ./share/* /usr/share/callerinfo
 #	cp ./bin/scripts/fritz2ci.conf /etc/init
+
+install-data:
+	mkdir -p /usr/share/callerinfo
+	cp ./share/revlookup.xml /usr/share/callerinfo/
+	cp ./share/vorwahl.dat /usr/share/callerinfo/
+
+install-all: install-bin install-data
+
+install: install-bin
