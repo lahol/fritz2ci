@@ -16,6 +16,7 @@
 #include "netutils.h"
 #include <errno.h>
 #include <cinet.h>
+#include "dbhandler.h"
 
 typedef enum {
     CISrvStateUninitialized = 0,
@@ -226,6 +227,70 @@ void _cisrv_handle_client_message_leave(CIClient *client, CINetMsgLeave *msg)
     cinet_msg_write_msg(&msgdata, &msglen, reply);
 
     cisrv_send_message(client, msgdata, msglen);
+
+    cinet_msg_free(reply);
+    g_free(msgdata);
+}
+
+void _cisrv_handle_client_message_db_num_calls(CIClient *client, CINetMsgDbNumCalls *msg)
+{
+    log_log("db_num_calls\n");
+
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    cinet_message_new_for_data(&msgdata, &msglen, CI_NET_MSG_DB_NUM_CALLS,
+            "count", dbhandler_get_num_calls(), NULL, NULL);
+
+    cisrv_send_message(client, msgdata, msglen);
+
+    g_free(msgdata);
+}
+
+void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallList *msg)
+{
+    log_log("db_call_list\n");
+
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    CINetMsgDbCallList *reply = NULL;
+
+    GList *result = dbhandler_get_calls(msg->user, msg->min_id, msg->count);
+    GList *tmp;
+    CICallInfo *info;
+
+    reply = (CINetMsgDbCallList*)cinet_message_new(CI_NET_MSG_DB_CALL_LIST,
+            "user", msg->user,
+            "min-id", msg->min_id,
+            "count", msg->count,
+            NULL, NULL);
+
+    for (tmp = result; tmp != NULL; tmp = g_list_next(tmp)) {
+        info = g_malloc0(sizeof(CICallInfo));
+        cinet_call_info_set_value(info, "id", GINT_TO_POINTER(((CIDbCall*)tmp->data)->id));
+        cinet_call_info_set_value(info, "completenumber", ((CIDbCall*)tmp->data)->data.cidsNumberComplete);
+        cinet_call_info_set_value(info, "areacode", ((CIDbCall*)tmp->data)->data.cidsAreaCode);
+        cinet_call_info_set_value(info, "number", ((CIDbCall*)tmp->data)->data.cidsNumber);
+        cinet_call_info_set_value(info, "date", ((CIDbCall*)tmp->data)->data.cidsDate);
+        cinet_call_info_set_value(info, "time", ((CIDbCall*)tmp->data)->data.cidsTime);
+        cinet_call_info_set_value(info, "msn", ((CIDbCall*)tmp->data)->data.cidsMSN);
+        cinet_call_info_set_value(info, "alias", ((CIDbCall*)tmp->data)->data.cidsAlias);
+        cinet_call_info_set_value(info, "area", ((CIDbCall*)tmp->data)->data.cidsArea);
+        cinet_call_info_set_value(info, "name", ((CIDbCall*)tmp->data)->data.cidsName);
+
+        reply->calls = g_list_prepend(reply->calls, (gpointer)info);
+    }
+
+    reply->calls = g_list_reverse(reply->calls);
+
+    cinet_msg_write_msg(&msgdata, &msglen, (CINetMsg*)reply);
+
+    cisrv_send_message(client, msgdata, msglen);
+
+    g_list_free_full(result, g_free);
+    cinet_msg_free((CINetMsg*)reply);
+    g_free(msgdata);
 }
 
 void _cisrv_handle_client_message(CIClient *client)
@@ -274,6 +339,12 @@ void _cisrv_handle_client_message(CIClient *client)
                 break;
             case CI_NET_MSG_LEAVE:
                 _cisrv_handle_client_message_leave(client, (CINetMsgLeave*)msg);
+                break;
+            case CI_NET_MSG_DB_NUM_CALLS:
+                _cisrv_handle_client_message_db_num_calls(client, (CINetMsgDbNumCalls*)msg);
+                break;
+            case CI_NET_MSG_DB_CALL_LIST:
+                _cisrv_handle_client_message_db_call_list(client, (CINetMsgDbCallList*)msg);
                 break;
             default:
                 log_log("unhandled message from client: %d\n", msg->msgtype);

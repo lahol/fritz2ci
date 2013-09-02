@@ -3,7 +3,7 @@
 # Provides:          fritz2ci
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
-# Should-Start:      $network $named cidb
+# Should-Start:      $network $named
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Translate Fritzbox messages to ci protocol

@@ -22,14 +22,6 @@ void _handle_signal(int signum);
 void handle_fritz_message(CIFritzCallMsg *cmsg);
 void backup_data_write(CIDataSet *set);
 
-typedef struct _DBInfo {
-    gchar *host;
-    gushort port;
-} DBInfo;
-
-gboolean _db_reconnect_cb(DBInfo *db);
-void db_try_reconnect(gchar *host, gushort port);
-
 GMainLoop *mainloop = NULL;
 /*GMainContext * context = NULL;*/
 GQueue *_db_data_todo = NULL;
@@ -84,7 +76,7 @@ int main(int argc, char **argv)
     }
     log_log("initialized cisrv\n");
 
-    if (dbhandler_init() != 0) {
+    if (dbhandler_init(cfg->db_location) != 0) {
         log_log("Could not initialize dbhandler\n");
     }
     else {
@@ -115,13 +107,6 @@ int main(int argc, char **argv)
         return 1;
     }
     log_log("started ci srv\n");
-
-    if (dbhandler_connect(cfg->db_host, cfg->db_port) != 0) {
-        db_try_reconnect(cfg->db_host, cfg->db_port);
-    }
-    else {
-        log_log("started dbhandler\n");
-    }
 
     if (fritz_listen(handle_fritz_message) != 0) {
         log_log("failed to listen (fritz)\n");
@@ -157,7 +142,6 @@ void _shutdown(void)
 {
     ci_free_area_codes();
     fritz_disconnect();
-    dbhandler_disconnect();
     cisrv_disconnect();
 
     msnl_cleanup();
@@ -169,7 +153,7 @@ void _shutdown(void)
     CIDataSet *set;
     while ((set = g_queue_pop_head(_db_data_todo)) != NULL) {
         g_free((CIDataSet *)set);
-        cnt++;
+        ++cnt;
     }
     g_queue_free(_db_data_todo);
     if (cnt) {
@@ -219,11 +203,9 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
         if (g_queue_is_empty(_db_data_todo)) {
             if ((dbrc = dbhandler_add_data(&set)) != 0) { /* send or receive failed, init reconnect */
                 log_log("add data failed\n");
-                const Fritz2CIConfig *cfg = config_get_config();
                 todo = g_malloc0(sizeof(CIDataSet));
                 memcpy(todo, &set, sizeof(CIDataSet));
                 g_queue_push_tail(_db_data_todo, (gpointer)todo);
-                db_try_reconnect(cfg->db_host, cfg->db_port);
             }
         }
         else {
@@ -256,44 +238,4 @@ void backup_data_write(CIDataSet *set)
             set->cidsService, set->cidsFix);
     fclose(f);
     log_log("written backup\n");
-}
-
-gboolean _db_reconnect_cb(DBInfo *db)
-{
-    log_log("db: trying to reconnect\n");
-    CIDataSet *data;
-    dbhandler_disconnect();
-    dbhandler_cleanup();
-    int rc = 0;
-    if (dbhandler_init() != 0) {
-        return TRUE;
-    }
-    if (dbhandler_connect(db->host, db->port) != 0) {
-        return TRUE;
-    }
-    g_mutex_lock(&_db_data_queue_lock);
-    while ((data = (CIDataSet *)g_queue_peek_head(_db_data_todo)) != NULL) {
-        rc = dbhandler_add_data(data);
-        if (rc) {
-            break;
-        }
-        g_queue_pop_head(_db_data_todo);
-        g_free((CIDataSet *)data);
-    }
-    g_mutex_unlock(&_db_data_queue_lock);
-    if (rc) {
-        return TRUE;
-    }
-    g_free(db->host);
-    g_free(db);
-    return FALSE;
-}
-
-void db_try_reconnect(gchar *host, gushort port)
-{
-    DBInfo *db = g_malloc0(sizeof(DBInfo));
-    db->host = g_strdup(host);
-    db->port = port;
-
-    g_timeout_add_seconds(2, (GSourceFunc)_db_reconnect_cb, (gpointer)db);
 }

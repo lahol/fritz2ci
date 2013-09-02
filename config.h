@@ -7,8 +7,7 @@ typedef struct _Fritz2CIConfig {
     gchar *fritz_host;
     gushort fritz_port;
     gushort ci2_port;
-    gchar *db_host;
-    gushort db_port;
+    gchar *db_location;
     gchar *cache_location;
     gchar *lookup_sources_location;
     gchar *areacodes_location;

@@ -4,10 +4,18 @@
 #include <glib.h>
 #include "CIData.h"
 
-gint dbhandler_init(void);
-gint dbhandler_connect(gchar *host, gushort port);
+typedef struct {
+    gint id;
+    CIDataSet data;
+} CIDbCall;
+
+gint dbhandler_init(gchar *db);
+
 gint dbhandler_add_data(CIDataSet *data);
-void dbhandler_disconnect(void);
+gulong dbhandler_get_num_calls(void);
+GList *dbhandler_get_calls(gint user, gint min_id, gint count);
+gint dbhandler_get_caller(gint user, gchar *number, gchar *name);
+
 void dbhandler_cleanup(void);
 
 #endif

@@ -19,8 +19,7 @@ gint config_load(gchar *conffile)
         _config.fritz_host = g_strdup("127.0.0.1");
         _config.fritz_port = 1012;
         _config.ci2_port = 63690;
-        _config.db_host = g_strdup("127.0.0.1");
-        _config.db_port = 63691;
+        _config.db_location = g_strdup("ci.db");
         _config.areacodes_location = g_strdup("/usr/share/fritz2ci/vorwahl.dat");
         _config.cache_location = g_strdup("cache.db");
         _config.lookup_sources_location = g_strdup("/usr/share/fritz2ci/revlookup.xml");;
@@ -35,8 +34,7 @@ gint config_load(gchar *conffile)
         _config.fritz_host = g_key_file_get_string(kf, "Fritz", "Host", NULL);
         _config.fritz_port = (gushort)g_key_file_get_integer(kf, "Fritz", "Port", NULL);
         _config.ci2_port = (gushort)g_key_file_get_integer(kf, "CIServer", "Port", NULL);
-        _config.db_host = g_key_file_get_string(kf, "Database", "Host", NULL);
-        _config.db_port = (gushort)g_key_file_get_integer(kf, "Database", "Port", NULL);
+        _config.db_location = g_key_file_get_string(kf, "Database", "Location", NULL);
         _config.cache_location = g_key_file_get_string(kf, "Cache", "Location", NULL);
         _config.lookup_sources_location = g_key_file_get_string(kf, "Lookup", "Location", NULL);
         _config.areacodes_location = g_key_file_get_string(kf, "Areacodes", "Location", NULL);
@@ -54,7 +52,7 @@ gint config_load(gchar *conffile)
 void config_free(void)
 {
     g_free(_config.fritz_host);
-    g_free(_config.db_host);
+    g_free(_config.db_location);
     g_free(_config.cache_location);
     g_free(_config.lookup_sources_location);
     g_free(_config.areacodes_location);
