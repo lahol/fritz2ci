@@ -260,6 +260,7 @@ void *_fritz_listen_thread_proc(void *pdata)
 
 void _fritz_parse_date(gchar *buffer, struct tm *dt)
 {
+    log_log("_fritz_parse_date: %s\n", buffer);
     char buf[4];
     strncpy(buf, &buffer[0], 2);
     dt->tm_mday = (unsigned short)atoi(buf);
@@ -283,6 +284,7 @@ gint _fritz_parse_notification(const gchar *notify, CIFritzCallMsg *cmsg)
     if (!cmsg) {
         return 2;
     }
+    log_log("_fritz_parse_notification: %s\n", notify);
     int i, j;
     char buffer[64];
     i = 0;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <cirevlookupsources>
-  <source id="1">
+  <source id="2">
     <description>Das Örtliche</description>
     <query linehandling="split">http://www1.dasoertliche.de/Controller?form_name=search_inv&amp;ph=%NUMBER%</query>
     <pattern expression='\s*na\s*:\s*\"(.+)\".*'>
@@ -16,7 +16,7 @@
       <field pos="1">FIELD_STREET</field>
     </pattern>
   </source>
-  <source id="2">
+  <source id="1">
     <description>Das Örtliche test</description>
     <query linehandling="split">http://www1.dasoertliche.de/Controller?form_name=search_inv&amp;ph=%NUMBER%</query>
     <pattern expression='\s*var\s*data\s*=\s*getItemData\(&apos;[^&apos;]*&apos;,\s*&apos;[^&apos;]*&apos;,\s*&apos;[^&apos;]*&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;,\s*&apos;([^&apos;]*)&apos;[^)]*\);\s*'>
