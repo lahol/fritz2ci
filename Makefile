@@ -3,31 +3,25 @@ INCDIRS = -I/usr/include `pkg-config --cflags glib-2.0 json-glib-1.0` `curl-conf
 
 CC = gcc
 CFLAGS = -Wall $(COMPILERFLAGS) $(INCDIRS) -O1
-LIBS = -lc -lsqlite3
+LIBS = -lc -lsqlite3 -lcinet
 
 PREFIX ?= /usr
 
-all: ./main.o ./ci2server.o ./fritz.o ./netutils.o ./ci_areacodes.o ./config.o ./logging.o ./dbhandler.o \
-	./cidbmessages.o ./cidbconnection.o ./lookup.o ./msn_lookup.o ./daemon.o
+ci_SRC := $(wildcard *.c)
+ci_OBJ := $(ci_SRC:.c=.o)
+ci_HEADERS := $(wildcard *.h)
+
+all: fritz2ci
+
+fritz2ci: $(ci_OBJ)
 	mkdir -p ./bin
-	$(CC) $(CFLAGS) -o./bin/fritz2ci \
-	main.c \
-	ci2server.c \
-	fritz.c \
-	netutils.c \
-	ci_areacodes.c \
-	config.c \
-	logging.c \
-	dbhandler.c \
-	cidbmessages.c \
-	cidbconnection.c \
-	lookup.c \
-	msn_lookup.c \
-	daemon.c \
-	$(LIBDIRS) $(LIBS) -lcinet
+	$(CC) $(CFLAGS) -o./bin/fritz2ci $^ $(LIBDIRS) $(LIBS)
+
+%.o: %.c $(ci_HEADERS)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm *.o
+	rm *.o ./bin/fritz2ci
 	
 install-bin:
 	mkdir -p /var/callerinfo
@@ -43,4 +37,6 @@ install-data:
 
 install-all: install-bin install-data
 
-install: install-bin
+install: install-all
+
+.PHONY: all clean install
