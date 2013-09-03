@@ -256,13 +256,13 @@ void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallL
 
     CINetMsgDbCallList *reply = NULL;
 
-    GList *result = dbhandler_get_calls(msg->user, msg->min_id, msg->count);
+    GList *result = dbhandler_get_calls(msg->user, msg->offset, msg->count);
     GList *tmp;
     CICallInfo *info;
 
     reply = (CINetMsgDbCallList*)cinet_message_new(CI_NET_MSG_DB_CALL_LIST,
             "user", msg->user,
-            "min-id", msg->min_id,
+            "offset", msg->offset,
             "count", msg->count,
             "guid", ((CINetMsg*)msg)->guid,
             NULL, NULL);

@@ -147,7 +147,7 @@ gulong dbhandler_get_num_calls(void)
 }
 
 /* return list of CIDbCall */
-GList *dbhandler_get_calls(gint user, gint min_id, gint count)
+GList *dbhandler_get_calls(gint user, gint offset, gint count)
 {
     GList *list = NULL, *tmp;
     CIDbCall *call;
@@ -155,7 +155,7 @@ GList *dbhandler_get_calls(gint user, gint min_id, gint count)
     char *buf;
     gulong timestamp;
 
-    sqlite3_bind_int(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 1, min_id);
+    sqlite3_bind_int(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 1, offset);
     sqlite3_bind_int(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 2, count);
 
     while ((rc = sqlite3_step(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS])) == SQLITE_ROW) {
