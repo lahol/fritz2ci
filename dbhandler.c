@@ -12,6 +12,7 @@
 #include "logging.h"
 #include <sqlite3.h>
 #include <time.h>
+#include "ci_areacodes.h"
 
 #define DBHANDLER_STMT_INSERT_CALL              0
 #define DBHANDLER_STMT_GET_CALLER               1
@@ -23,6 +24,7 @@ sqlite3 *dbhandler_db = NULL;
 sqlite3_stmt *dbhandler_stmts[DBHANDLER_STMT_NUM_STMTS];
 
 gulong parse_datetime(gchar *date, gchar *time);
+gboolean is_valid_number(gchar *string);
 
 gint dbhandler_init(gchar *db)
 {
@@ -147,7 +149,7 @@ gulong dbhandler_get_num_calls(void)
 /* return list of CIDbCall */
 GList *dbhandler_get_calls(gint user, gint min_id, gint count)
 {
-    GList *list = NULL;
+    GList *list = NULL, *tmp;
     CIDbCall *call;
     int rc;
     char *buf;
@@ -200,13 +202,43 @@ GList *dbhandler_get_calls(gint user, gint min_id, gint count)
     }
 
     /* get callers */
+    for (tmp = list; tmp != NULL; tmp = g_list_next(tmp)) {
+        call = (CIDbCall*)tmp->data;
+        if (is_valid_number(call->data.cidsNumberComplete)) {
+            ci_get_area_code(call->data.cidsNumberComplete,
+                    call->data.cidsAreaCode,
+                    call->data.cidsNumber,
+                    call->data.cidsArea);
+            dbhandler_get_caller(user, call->data.cidsNumberComplete,
+                    call->data.cidsName);
+        }
+    }
 
     return list;
 }
 
 gint dbhandler_get_caller(gint user, gchar *number, gchar *name)
 {
-    return 1;
+    char *buf;
+    int rc;
+
+    if (!is_valid_number(number))
+        return 1;
+
+    sqlite3_bind_int(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER], 2, user);
+    sqlite3_bind_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER], 1, number,
+            strlen(number), SQLITE_TRANSIENT);
+    
+    rc = sqlite3_step(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER]);
+    if (rc == SQLITE_ROW) {
+        buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER], 1);
+        if (buf && name)
+            strncpy(name, buf, 255);
+    }
+
+    sqlite3_reset(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER]);
+
+    return (rc != SQLITE_DONE && rc != SQLITE_ROW) ? 1 : 0;
 }
 
 gulong parse_datetime(gchar *date, gchar *time)
@@ -249,4 +281,17 @@ gulong parse_datetime(gchar *date, gchar *time)
 
     t.tm_isdst = -1; /* no information available */
     return (gulong)mktime(&t);
+}
+
+gboolean is_valid_number(gchar *string)
+{
+    if (string == NULL || string[0] == 0)
+        return FALSE;
+    gint j = 0;
+    while (string[j] != 0) {
+        if (!g_ascii_isdigit(string[j++]))
+            return FALSE;
+    }
+
+    return TRUE;
 }

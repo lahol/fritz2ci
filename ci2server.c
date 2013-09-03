@@ -205,7 +205,7 @@ void _cisrv_handle_client_message_version(CIClient *client, CINetMsgVersion *msg
             ((CINetMsgVersion*)msg)->patch);
 
     reply = cinet_message_new(CI_NET_MSG_VERSION,
-            "major", 3, "minor", 0, "patch", 0, NULL, NULL);
+            "major", 3, "minor", 0, "patch", 0, "guid", ((CINetMsg*)msg)->guid, NULL, NULL);
 
     gchar *msgdata = NULL;
     gsize msglen = 0;
@@ -220,7 +220,7 @@ void _cisrv_handle_client_message_leave(CIClient *client, CINetMsgLeave *msg)
     log_log("Client wants to leave\n");
     client->flags |= CISRV_CLIENT_REMOVE;
     CINetMsg *reply = NULL;
-    reply = cinet_message_new(CI_NET_MSG_LEAVE, NULL, NULL);
+    reply = cinet_message_new(CI_NET_MSG_LEAVE, "guid", ((CINetMsg*)msg)->guid, NULL, NULL);
     gchar *msgdata = NULL;
     gsize msglen = 0;
 
@@ -240,7 +240,7 @@ void _cisrv_handle_client_message_db_num_calls(CIClient *client, CINetMsgDbNumCa
     gsize msglen = 0;
 
     cinet_message_new_for_data(&msgdata, &msglen, CI_NET_MSG_DB_NUM_CALLS,
-            "count", dbhandler_get_num_calls(), NULL, NULL);
+            "count", dbhandler_get_num_calls(), "guid", ((CINetMsg*)msg)->guid, NULL, NULL);
 
     cisrv_send_message(client, msgdata, msglen);
 
@@ -264,6 +264,7 @@ void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallL
             "user", msg->user,
             "min-id", msg->min_id,
             "count", msg->count,
+            "guid", ((CINetMsg*)msg)->guid,
             NULL, NULL);
 
     for (tmp = result; tmp != NULL; tmp = g_list_next(tmp)) {
@@ -295,6 +296,7 @@ void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallL
 
 void _cisrv_handle_client_message(CIClient *client)
 {
+    log_log("handle client message\n");
     char buffer[32];
     CINetMsgHeader header;
     ssize_t rc = recv(client->sock, buffer, CINET_HEADER_LENGTH, 0);
