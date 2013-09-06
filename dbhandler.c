@@ -120,7 +120,7 @@ gint dbhandler_add_data(CIDataSet *data)
 #undef BIND_TEXT
 
     rc = sqlite3_step(dbhandler_stmts[DBHANDLER_STMT_INSERT_CALL]);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
         log_log("dbhandler: insertcall failed (step: %d)\n", rc);
         return 1;
     }

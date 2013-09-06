@@ -234,8 +234,6 @@ void _cisrv_handle_client_message_leave(CIClient *client, CINetMsgLeave *msg)
 
 void _cisrv_handle_client_message_db_num_calls(CIClient *client, CINetMsgDbNumCalls *msg)
 {
-    log_log("db_num_calls\n");
-
     gchar *msgdata = NULL;
     gsize msglen = 0;
 
@@ -249,8 +247,6 @@ void _cisrv_handle_client_message_db_num_calls(CIClient *client, CINetMsgDbNumCa
 
 void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallList *msg)
 {
-    log_log("db_call_list\n");
-
     gchar *msgdata = NULL;
     gsize msglen = 0;
 
@@ -296,7 +292,6 @@ void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallL
 
 void _cisrv_handle_client_message(CIClient *client)
 {
-    log_log("handle client message\n");
     char buffer[32];
     CINetMsgHeader header;
     ssize_t rc = recv(client->sock, buffer, CINET_HEADER_LENGTH, 0);
