@@ -170,7 +170,7 @@ enum IfOperstate {
     IF_OPER_UNKNOWN = 0,
     IF_OPER_NOTPRESENT,
     IF_OPER_DOWN,
-    IF_OPER_LOWERLAYLER_DOWN,
+    IF_OPER_LOWERLAYERDOWN,
     IF_OPER_TESTING,
     IF_OPER_DORMANT,
     IF_OPER_UP
@@ -196,6 +196,8 @@ void _netutil_netlink_handle_newlink(struct nlmsghdr *h, NetutilCallbacks *cb, v
             case IFLA_OPERSTATE:
                 state = *(int *)RTA_DATA(attr);
                 break;
+/*            default:
+                log_log("attr: %d\n", attr->rta_type);*/
         }
     }
 
@@ -207,6 +209,17 @@ void _netutil_netlink_handle_newlink(struct nlmsghdr *h, NetutilCallbacks *cb, v
         log_log("Network %s up, invoke net up handler\n", ifname);
         if (cb && cb->net_up) cb->net_up(iface->ifi_index, ifname, data);
     }
+/*    else {
+#define PROPSTATE(st) do { if (state == (st)) log_log("newlink opstate: " #st "\n"); } while (0)
+        PROPSTATE(IF_OPER_UNKNOWN);
+        PROPSTATE(IF_OPER_NOTPRESENT);
+        PROPSTATE(IF_OPER_DOWN);
+        PROPSTATE(IF_OPER_LOWERLAYERDOWN);
+        PROPSTATE(IF_OPER_TESTING);
+        PROPSTATE(IF_OPER_DORMANT);
+        PROPSTATE(IF_OPER_UP);
+#undef PROPSTATE
+    }*/
 }
 
 void netutil_handle_netlink_message(int nlsock, NetutilCallbacks *cb, void *data)
@@ -220,7 +233,7 @@ void netutil_handle_netlink_message(int nlsock, NetutilCallbacks *cb, void *data
     while ((len = recv(nlsock, nlh, 4096, MSG_DONTWAIT)) >= 1) {
         while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
             if (nlh->nlmsg_type == RTM_NEWLINK) {
-                log_log("netlink: RTM_NEWLINK\n");
+/*                log_log("netlink: RTM_NEWLINK\n");*/
                 _netutil_netlink_handle_newlink(nlh, cb, data);
             }
             else {
