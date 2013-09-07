@@ -91,10 +91,11 @@ int main(int argc, char **argv)
 
     if (msnl_read_file(cfg->msn_lookup_location) != 0) {
         log_log("Could not open msn lookup file\n");
-        _shutdown();
-        return 1;
+/*        _shutdown();
+        return 1;*/
     }
-    log_log("loaded msn lookup file\n");
+    else
+        log_log("loaded msn lookup file\n");
 
     /*connect*/
     if (fritz_connect(NULL) == 0) {
