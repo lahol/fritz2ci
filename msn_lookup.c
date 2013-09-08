@@ -68,7 +68,6 @@ void msnl_cleanup(void)
 
 void _read_line(gchar *buffer, MSN_Lookup *data)
 {
-    log_log("read_line: %s\n", buffer);
     gint i, j;
     if (!data) {
         return;

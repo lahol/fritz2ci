@@ -193,7 +193,6 @@ gint cisrv_send_message(CIClient *client, gchar *buffer, gsize len)
 
 void _cisrv_handle_client_message_version(CIClient *client, CINetMsgVersion *msg)
 {
-    CINetMsg *reply = NULL;
     log_log("Client reports itself as %d.%d.%d (%s)\n",
             ((CINetMsgVersion*)msg)->major,
             ((CINetMsgVersion*)msg)->minor,
@@ -204,15 +203,15 @@ void _cisrv_handle_client_message_version(CIClient *client, CINetMsgVersion *msg
             ((CINetMsgVersion*)msg)->minor,
             ((CINetMsgVersion*)msg)->patch);
 
-    reply = cinet_message_new(CI_NET_MSG_VERSION,
-            "major", 3, "minor", 0, "patch", 0, "guid", ((CINetMsg*)msg)->guid, NULL, NULL);
-
     gchar *msgdata = NULL;
     gsize msglen = 0;
 
-    cinet_msg_write_msg(&msgdata, &msglen, reply);
+    cinet_message_new_for_data(&msgdata, &msglen, CI_NET_MSG_VERSION,
+            "major", 3, "minor", 0, "patch", 0, "guid", ((CINetMsg*)msg)->guid, NULL, NULL);
 
     cisrv_send_message(client, msgdata, msglen);
+
+    g_free(msgdata);
 }
 
 void _cisrv_handle_client_message_leave(CIClient *client, CINetMsgLeave *msg)
