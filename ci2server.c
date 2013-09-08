@@ -263,7 +263,7 @@ void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallL
             NULL, NULL);
 
     for (tmp = result; tmp != NULL; tmp = g_list_next(tmp)) {
-        info = g_malloc0(sizeof(CICallInfo));
+        info = cinet_call_info_new();
         cinet_call_info_set_value(info, "id", GINT_TO_POINTER(((CIDbCall*)tmp->data)->id));
         cinet_call_info_set_value(info, "completenumber", ((CIDbCall*)tmp->data)->data.cidsNumberComplete);
         cinet_call_info_set_value(info, "areacode", ((CIDbCall*)tmp->data)->data.cidsAreaCode);
@@ -279,6 +279,88 @@ void _cisrv_handle_client_message_db_call_list(CIClient *client, CINetMsgDbCallL
     }
 
     reply->calls = g_list_reverse(reply->calls);
+
+    cinet_msg_write_msg(&msgdata, &msglen, (CINetMsg*)reply);
+
+    cisrv_send_message(client, msgdata, msglen);
+
+    g_list_free_full(result, g_free);
+    cinet_msg_free((CINetMsg*)reply);
+    g_free(msgdata);
+}
+
+void _cisrv_handle_client_message_db_get_caller(CIClient *client, CINetMsgDbGetCaller *msg)
+{
+    gchar name[256];
+    gint rc;
+
+    rc = dbhandler_get_caller(msg->user, msg->caller.number, name);
+
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    cinet_message_new_for_data(&msgdata, &msglen, CI_NET_MSG_DB_GET_CALLER,
+            "guid", ((CINetMsg*)msg)->guid,
+            "user", msg->user,
+            "number", msg->caller.number,
+            "name", rc == 0 ? name : msg->caller.name,
+            NULL, NULL);
+
+    cisrv_send_message(client, msgdata, msglen);
+
+    g_free(msgdata);
+}
+
+void _cisrv_handle_client_message_db_add_caller(CIClient *client, CINetMsgDbAddCaller *msg)
+{
+    dbhandler_add_caller(msg->user, msg->caller.number, msg->caller.name);
+    
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    cinet_msg_write_msg(&msgdata, &msglen, (CINetMsg*)msg);
+    cisrv_send_message(client, msgdata, msglen);
+
+    g_free(msgdata);
+}
+
+void _cisrv_handle_client_message_db_del_caller(CIClient *client, CINetMsgDbDelCaller *msg)
+{
+    dbhandler_remove_caller(msg->user, msg->caller.number, msg->caller.name);
+
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
+
+    cinet_msg_write_msg(&msgdata, &msglen, (CINetMsg*)msg);
+    cisrv_send_message(client, msgdata, msglen);
+
+    g_free(msgdata);
+}
+
+void _cisrv_handle_client_message_db_get_caller_list(CIClient *client, CINetMsgDbGetCallerList *msg)
+{
+    GList *result = dbhandler_get_callers(msg->user, msg->filter);
+    GList *tmp;
+    CICallerInfo *info;
+
+    CINetMsgDbGetCallerList *reply = (CINetMsgDbGetCallerList*)cinet_message_new(CI_NET_MSG_DB_GET_CALLER_LIST,
+            "guid", ((CINetMsg*)msg)->guid,
+            "user", msg->user,
+            "filter", msg->filter,
+            NULL, NULL);
+
+    for (tmp = result; tmp != NULL; tmp = g_list_next(tmp)) {
+        info = cinet_caller_info_new();
+        cinet_caller_info_set_value(info, "number", ((CIDbCaller*)tmp->data)->number);
+        cinet_caller_info_set_value(info, "name", ((CIDbCaller*)tmp->data)->name);
+
+        reply->callers = g_list_prepend(reply->callers, (gpointer)info);
+    }
+
+    reply->callers = g_list_reverse(reply->callers);
+
+    gchar *msgdata = NULL;
+    gsize msglen = 0;
 
     cinet_msg_write_msg(&msgdata, &msglen, (CINetMsg*)reply);
 
@@ -341,6 +423,18 @@ void _cisrv_handle_client_message(CIClient *client)
                 break;
             case CI_NET_MSG_DB_CALL_LIST:
                 _cisrv_handle_client_message_db_call_list(client, (CINetMsgDbCallList*)msg);
+                break;
+            case CI_NET_MSG_DB_GET_CALLER:
+                _cisrv_handle_client_message_db_get_caller(client, (CINetMsgDbGetCaller*)msg);
+                break;
+            case CI_NET_MSG_DB_ADD_CALLER:
+                _cisrv_handle_client_message_db_add_caller(client, (CINetMsgDbAddCaller*)msg);
+                break;
+            case CI_NET_MSG_DB_DEL_CALLER:
+                _cisrv_handle_client_message_db_del_caller(client, (CINetMsgDbDelCaller*)msg);
+                break;
+            case CI_NET_MSG_DB_GET_CALLER_LIST:
+                _cisrv_handle_client_message_db_get_caller_list(client, (CINetMsgDbGetCallerList*)msg);
                 break;
             default:
                 log_log("unhandled message from client: %d\n", msg->msgtype);
@@ -488,11 +582,23 @@ gint cisrv_disconnect(void)
     return 0;
 }
 
+void _cisrv_shutdown_sock(int sock)
+{
+    char buffer[1024];
+    ssize_t rc;
+
+    if (shutdown(sock, SHUT_WR) == 0) {
+        while ((rc = recv(sock, buffer, 1024, 0)) > 0) {}
+    }
+
+    close(sock);
+}
+
 void _cisrv_close_all_clients(void)
 {
     g_mutex_lock(&_cisrv_server.clist_lock);
     while (_cisrv_server.clientlist) {
-        close(((CIClient *)_cisrv_server.clientlist->data)->sock);
+       _cisrv_shutdown_sock(((CIClient *)_cisrv_server.clientlist->data)->sock);
         g_free((CIClient *)_cisrv_server.clientlist->data);
         _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, _cisrv_server.clientlist->data);
     }
@@ -509,7 +615,7 @@ void _cisrv_remove_marked_clients(void)
         next = g_slist_next(tmp);
         if (((CIClient *)tmp->data)->flags & CISRV_CLIENT_REMOVE) {
             log_log("removing client %d\n", ((CIClient*)tmp->data)->sock);
-            close(((CIClient *)tmp->data)->sock);
+            _cisrv_shutdown_sock(((CIClient *)tmp->data)->sock);
             g_free((CIClient *)tmp->data);
             _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, tmp->data);
         }

@@ -241,6 +241,90 @@ gint dbhandler_get_caller(gint user, gchar *number, gchar *name)
     return (rc != SQLITE_DONE && rc != SQLITE_ROW) ? 1 : 0;
 }
 
+gint dbhandler_add_caller(gint user, gchar *number, gchar *name)
+{
+    gchar *sql;
+    int rc;
+
+    if (number == NULL || name == NULL)
+        return 1;
+
+    if (!is_valid_number(number))
+        return 1;
+
+    sql = sqlite3_mprintf("update cicaller set name=%Q where clientid=%d and number=%Q", name, user, number);
+    rc = sqlite3_exec(dbhandler_db, sql, NULL, NULL, NULL);
+    sqlite3_free(sql);
+
+    if (rc != SQLITE_OK)
+        return 1;
+    
+    if (sqlite3_changes(dbhandler_db) == 0) {
+        sql = sqlite3_mprintf("insert into cicaller (clientid,number,name) values (%d,%Q,%Q)", user, number, name);
+        rc = sqlite3_exec(dbhandler_db, sql, NULL, NULL, NULL);
+        sqlite3_free(sql);
+
+        if (rc == SQLITE_OK && sqlite3_changes(dbhandler_db) > 0)
+            return 0;
+    }
+    else
+        return 0;
+
+    return 1;
+}
+
+gint dbhandler_remove_caller(gint user, gchar *number, gchar *name)
+{
+    gchar *sql;
+    int rc;
+    if (!is_valid_number(number))
+        return 1;
+
+    sql = sqlite3_mprintf("delete from cicaller where clientid=%d and number=%Q and name=%Q", user, number, name);
+    rc = sqlite3_exec(dbhandler_db, sql, NULL, NULL, NULL);
+    sqlite3_free(sql);
+
+    if (rc != SQLITE_OK)
+        return 1;
+
+    return 0;
+}
+
+/* return list of CIDbCaller */
+GList *dbhandler_get_callers(gint user, gchar *filter)
+{
+    gchar *sql;
+    GList *callers = NULL;
+    sqlite3_stmt *stmt = NULL;
+    CIDbCaller *caller = NULL;
+    int rc;
+
+    if (filter != NULL && filter[0] != 0)
+        sql = sqlite3_mprintf("select number, name from cicaller where clientid=%d and (name like '%%%q%%' or number like '%%%q%%')",
+                user, filter, filter);
+    else
+        sql = sqlite3_mprintf("select number, name from cicaller where clientid=%d", user);
+
+    rc = sqlite3_prepare_v2(dbhandler_db, sql, strlen(sql), &stmt, NULL);
+    sqlite3_free(sql);
+
+    if (rc != SQLITE_OK)
+        return NULL;
+
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        caller = g_malloc0(sizeof(CIDbCaller));
+        
+        caller->number = g_strdup((char*)sqlite3_column_text(stmt, 0));
+        caller->name   = g_strdup((char*)sqlite3_column_text(stmt, 1));
+        
+        callers = g_list_prepend(callers, caller);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return callers;
+}
+
 gulong parse_datetime(gchar *date, gchar *time)
 {
     struct tm t;
