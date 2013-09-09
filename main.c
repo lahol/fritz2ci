@@ -1,4 +1,5 @@
 #include <glib.h>
+#include <glib-object.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -31,6 +32,10 @@ int main(int argc, char **argv)
 {
     pid_t daemon_pid;
     struct sigaction _sgn;
+
+#if !GLIB_CHECK_VERSION(2,36,0)
+    g_type_init();
+#endif
 
     if (parse_cmd_line(&argc, &argv)) {
         fprintf(stderr, "Could not parse command line\n");
