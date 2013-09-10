@@ -447,7 +447,7 @@ void _cisrv_handle_client_message(CIClient *client)
     cinet_msg_free(msg);
 }
 
-gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data)
+gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data, gchar *msgid)
 {
     GSList *tmp;
     CINetMessage cmsg;
@@ -478,6 +478,8 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data)
                 data->cidsArea : NULL);
         cinet_message_set_value(msg, "areacode", data->cidsAreaCode[0] ?
                 data->cidsAreaCode : NULL);
+        if (msgid != NULL)
+            cinet_message_set_value(msg, "msgid", msgid);
     }
     else if (msgtype == CI2ServerMsgDisconnect) {
         msg = cinet_message_new(CI_NET_MSG_SHUTDOWN, NULL, NULL);
@@ -564,7 +566,7 @@ gint cisrv_disconnect(void)
             _cisrv_server.state = CISrvStateConnected;
         case CISrvStateConnected:
             log_log("broadcast message\n");
-            cisrv_broadcast_message(CI2ServerMsgDisconnect, NULL);
+            cisrv_broadcast_message(CI2ServerMsgDisconnect, NULL, NULL);
             _cisrv_server.state = CISrvStateInitialized;
         case CISrvStateInitialized:
             break;

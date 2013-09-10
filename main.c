@@ -16,6 +16,7 @@
 #include "msn_lookup.h"
 #include "logging.h"
 #include "daemon.h"
+#include <sys/time.h>
 
 void _shutdown(void);
 void _handle_signal(int signum);
@@ -177,6 +178,20 @@ void _handle_signal(int signum)
     g_main_loop_quit(mainloop);
 }
 
+void generate_msg_id(gchar *id)
+{
+    if (id == NULL)
+        return;
+    struct timeval tv;
+    struct tm *tm;
+
+    gettimeofday(&tv, NULL);
+    tm = localtime(&tv.tv_sec);
+
+    strftime(id, 16, "%y%m%d%H%M%S", tm);
+    snprintf(&id[12], 4, "%03d", (int)(((long)tv.tv_usec)/1000)%1000);
+}
+
 void handle_fritz_message(CIFritzCallMsg *cmsg)
 {
     log_log("handle_fritz_message\n");
@@ -188,10 +203,17 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
     if (/*cmsg->msgtype != CALLMSGTYPE_CALL &&*/ cmsg->msgtype != CALLMSGTYPE_RING) {
         return;
     }
+
+    gchar msgid[16];
+
     CIDataSet set;
     CIDataSet *todo = NULL;
     memset(&set, 0, sizeof(CIDataSet));
+
     if (cmsg->msgtype == CALLMSGTYPE_RING) {
+        generate_msg_id(msgid);
+        log_log("generate msg id: %s\n", msgid);
+
         strftime(set.cidsTime, 16, "%H:%M:%S", &cmsg->datetime);
         strcpy(set.cidsNumberComplete, cmsg->calling_number);
         strcpy(set.cidsMSN, cmsg->called_number);
@@ -203,7 +225,8 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
         strftime(set.cidsDate, 16, "%d.%m.%Y", &cmsg->datetime);
         backup_data_write(&set);
         strftime(set.cidsDate, 16, "%Y-%m-%d", &cmsg->datetime);
-        cisrv_broadcast_message(CI2ServerMsgMessage, &set);
+        cisrv_broadcast_message(CI2ServerMsgMessage, &set, msgid);
+
         rc = lookup_get_caller_data(&set);
         g_mutex_lock(&_db_data_queue_lock);
         if (g_queue_is_empty(_db_data_todo)) {
@@ -220,10 +243,11 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
             g_queue_push_tail(_db_data_todo, (gpointer)todo);
         }
         g_mutex_unlock(&_db_data_queue_lock);
+
         if (rc == 0) {
-            cisrv_broadcast_message(CI2ServerMsgUpdate, &set);
+            cisrv_broadcast_message(CI2ServerMsgUpdate, &set, msgid);
         }
-        cisrv_broadcast_message(CI2ServerMsgComplete, &set);
+        cisrv_broadcast_message(CI2ServerMsgComplete, &set, msgid);
     }
 }
 

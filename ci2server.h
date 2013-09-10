@@ -13,7 +13,7 @@ typedef enum {
 
 gint cisrv_init(void);
 gint cisrv_run(gushort port);
-gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data);
+gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data, gchar *msgid);
 gint cisrv_disconnect(void);
 gint cisrv_cleanup(void);
 
