@@ -238,7 +238,7 @@ gint dbhandler_get_caller(gint user, gchar *number, gchar *name)
 
     sqlite3_reset(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER]);
 
-    return (rc != SQLITE_DONE && rc != SQLITE_ROW) ? 1 : 0;
+    return (rc != SQLITE_ROW) ? 1 : 0;
 }
 
 gint dbhandler_add_caller(gint user, gchar *number, gchar *name)
