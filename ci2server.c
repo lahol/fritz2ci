@@ -303,7 +303,7 @@ void _cisrv_handle_client_message_db_get_caller(CIClient *client, CINetMsgDbGetC
             "guid", ((CINetMsg*)msg)->guid,
             "user", msg->user,
             "number", msg->caller.number,
-            "name", rc == 0 ? name : msg->caller.name,
+            "name", rc == 0 ? name : NULL,
             NULL, NULL);
 
     cisrv_send_message(client, msgdata, msglen);
