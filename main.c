@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include "CIData.h"
 #include "config.h"
-#include "ci2server.h"
+#include "ci-server.h"
 #include "fritz.h"
 #include "dbhandler.h"
 #include "lookup.h"
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
         log_log("initialized fritz\n");
     }
     if (cisrv_init() != 0) {
-        log_log("Could not initialize ci2server\n");
+        log_log("Could not initialize ci-server\n");
         _shutdown();
         return 1;
     }

@@ -11,7 +11,7 @@
 #include <string.h>
 #include <memory.h>
 /*#include <pthread.h>*/
-#include "ci2server.h"
+#include "ci-server.h"
 #include "logging.h"
 #include "netutils.h"
 #include <errno.h>
