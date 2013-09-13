@@ -163,11 +163,11 @@ GList *dbhandler_get_calls(gint user, gint offset, gint count)
 
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 0);
         if (buf)
-            strncpy(call->data.cidsNumberComplete, buf, 31);
+            g_strlcpy(call->data.cidsNumberComplete, buf, 32);
 
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 1);
         if (buf)
-            strncpy(call->data.cidsName, buf, 255);
+            g_strlcpy(call->data.cidsName, buf, 256);
 
         timestamp = sqlite3_column_int(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 2);
         strftime(call->data.cidsDate, 16, "%Y-%m-%d", localtime((time_t*)&timestamp));
@@ -175,19 +175,19 @@ GList *dbhandler_get_calls(gint user, gint offset, gint count)
 
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 3);
         if (buf)
-            strncpy(call->data.cidsMSN, buf, 15);
+            g_strlcpy(call->data.cidsMSN, buf, 16);
 
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 4);
         if (buf)
-            strncpy(call->data.cidsAlias, buf, 255);
+            g_strlcpy(call->data.cidsAlias, buf, 256);
 
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 5);
         if (buf)
-            strncpy(call->data.cidsService, buf, 255);
+            g_strlcpy(call->data.cidsService, buf, 256);
 
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 6);
         if (buf)
-            strncpy(call->data.cidsFix, buf, 255);
+            g_strlcpy(call->data.cidsFix, buf, 256);
 
         call->id = sqlite3_column_int(dbhandler_stmts[DBHANDLER_STMT_GET_CALLS], 7);
 
@@ -233,7 +233,7 @@ gint dbhandler_get_caller(gint user, gchar *number, gchar *name)
     if (rc == SQLITE_ROW) {
         buf = (char*)sqlite3_column_text(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER], 1);
         if (buf && name)
-            strncpy(name, buf, 255);
+            g_strlcpy(name, buf, 256);
     }
 
     sqlite3_reset(dbhandler_stmts[DBHANDLER_STMT_GET_CALLER]);
