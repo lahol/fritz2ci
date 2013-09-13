@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@
 #include "fritz.h"
 #include "logging.h"
 #include <errno.h>
+#include <time.h>
 
 #define FRITZ_BUFFER_SIZE      1024
 
@@ -258,175 +260,77 @@ void *_fritz_listen_thread_proc(void *pdata)
     return NULL;
 }
 
-void _fritz_parse_date(gchar *buffer, struct tm *dt)
-{
-    log_log("_fritz_parse_date: %s\n", buffer);
-    char buf[4];
-    strncpy(buf, &buffer[0], 2);
-    dt->tm_mday = (unsigned short)atoi(buf);
-    strncpy(buf, &buffer[3], 2);
-    dt->tm_mon = (unsigned short)atoi(buf)-1;
-    strncpy(buf, &buffer[6], 2);
-    dt->tm_year = 100+(unsigned short)atoi(buf);
-    strncpy(buf, &buffer[9], 2);
-    dt->tm_hour = (unsigned short)atoi(buf);
-    strncpy(buf, &buffer[12], 2);
-    dt->tm_min = (unsigned short)atoi(buf);
-    strncpy(buf, &buffer[15], 2);
-    dt->tm_sec = (unsigned short)atoi(buf);
-}
-
+/* parse notifications:
+ * date;CALL;connectionid;nst;msn;number;protocol;
+ * date;RING;connectionid;number;msn;protocol;
+ * date;CONNECT;connectionid;nst;number;
+ * date;DISCONNECT;connectionid;duration;
+ *
+ * date: %d.%m.%y %H:%M:%S
+ * duration: seconds
+ */
 gint _fritz_parse_notification(const gchar *notify, CIFritzCallMsg *cmsg)
 {
-    if (!notify) {
+    if (notify == NULL)
         return 1;
-    }
-    if (!cmsg) {
+    if (cmsg == NULL)
         return 2;
-    }
     log_log("_fritz_parse_notification: %s\n", notify);
-    int i, j;
-    char buffer[64];
-    i = 0;
-    j = 0;
-    while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-        buffer[j] = notify[i];
-        i++;
-        j++;
-    }
-    buffer[j] = '\0';
-    _fritz_parse_date(buffer, &cmsg->datetime);
-    if (notify[i] == '\0') {
-        return 3;
-    }
-    i++;
-    j = 0;
-    while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-        buffer[j] = notify[i];
-        i++;
-        j++;
-    }
-    buffer[j] = '\0';
-    if (strcmp(buffer, "CALL") == 0) {
-        cmsg->msgtype = CALLMSGTYPE_CALL;
-    }
-    else if (strcmp(buffer, "RING") == 0) {
-        cmsg->msgtype = CALLMSGTYPE_RING;
-    }
-    else if (strcmp(buffer, "CONNECT") == 0) {
-        cmsg->msgtype = CALLMSGTYPE_CONNECT;
-    }
-    else if (strcmp(buffer, "DISCONNECT") == 0) {
-        cmsg->msgtype = CALLMSGTYPE_DISCONNECT;
-    }
-    else {
-        return 4;
-    }
-    if (notify[i] == '\0') {
-        return 3;
-    }
-    j = 0;
-    i++;
-    while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-        buffer[j] = notify[i];
-        i++;
-        j++;
-    }
-    buffer[j] = '\0';
-    cmsg->connectionid = (unsigned short)atoi(buffer);
 
-    if (notify[i] == '\0') {
-        return 3;
-    }
-    i++;
-    j = 0;
+    memset(cmsg, 0, sizeof(CIFritzCallMsg));
+
+    gchar **fields = g_strsplit(notify, ";", 0);
+
+    /* all messages must have at least 4 fields */
+    if (fields[0] == NULL || fields[1] == NULL ||
+            fields[2] == NULL || fields[3] == NULL)
+        goto out;
+
+    strptime(fields[0], "%d.%m.%y %H:%M:%S", &cmsg->datetime);
+
+    if (g_strcmp0(fields[1], "RING") == 0)
+        cmsg->msgtype = CALLMSGTYPE_RING;
+    else if (g_strcmp0(fields[1], "CALL") == 0)
+        cmsg->msgtype = CALLMSGTYPE_CALL;
+    else if (g_strcmp0(fields[1], "CONNECT") == 0)
+        cmsg->msgtype = CALLMSGTYPE_CONNECT;
+    else if (g_strcmp0(fields[1], "DISCONNECT") == 0)
+        cmsg->msgtype = CALLMSGTYPE_DISCONNECT;
+    else
+        goto out;
+
+    cmsg->connectionid = (gushort)atoi(fields[2]);
 
     switch (cmsg->msgtype) {
-        case CALLMSGTYPE_CALL:
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                buffer[j] = notify[i];
-                i++;
-                j++;
-            }
-            buffer[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
-            i++;
-            j = 0;
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                cmsg->calling_number[j] = notify[i];
-                i++;
-                j++;
-            }
-            cmsg->calling_number[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
-            i++;
-            j = 0;
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                cmsg->called_number[j] = notify[i];
-                i++;
-                j++;
-            }
-            cmsg->called_number[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
-            i++;
-            j = 0;
-            break;
         case CALLMSGTYPE_RING:
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                cmsg->calling_number[j] = notify[i];
-                i++;
-                j++;
-            }
-            cmsg->calling_number[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
-            i++;
-            j = 0;
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                cmsg->called_number[j] = notify[i];
-                i++;
-                j++;
-            }
-            cmsg->called_number[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
-            i++;
-            j = 0;
+            if (fields[4] == NULL)
+                goto out;
+            g_strlcpy(cmsg->calling_number, fields[3], 32);
+            g_strlcpy(cmsg->called_number, fields[4], 32);
+            break;
+        case CALLMSGTYPE_CALL:
+            if (fields[4] == NULL || fields[5] == NULL)
+                goto out;
+            cmsg->nst = (gushort)atoi(fields[3]);
+            g_strlcpy(cmsg->calling_number, fields[4], 32);
+            g_strlcpy(cmsg->called_number, fields[5], 32);
             break;
         case CALLMSGTYPE_CONNECT:
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                buffer[j] = notify[i];
-                i++;
-                j++;
-            }
-            buffer[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
+            if (fields[4] == NULL)
+                goto out;
+            cmsg->nst = (gushort)atoi(fields[3]);
+            g_strlcpy(cmsg->calling_number, fields[4], 32);
             break;
         case CALLMSGTYPE_DISCONNECT:
-            while (notify[i] != ';' && notify[i] != '\0' && notify[i] != 0xa && notify[i] != 0xd) {
-                buffer[j] = notify[i];
-                i++;
-                j++;
-            }
-            buffer[j] = '\0';
-            if (notify[i] == '\0') {
-                return 3;
-            }
-            i++;
-            j = 0;
-            cmsg->duration = (unsigned long)atoi(buffer);
+            cmsg->duration = (gulong)strtoul(fields[3], NULL, 10);
             break;
     }
+
+    g_strfreev(fields);
     return 0;
+
+out:
+    g_strfreev(fields);
+    return 3;
 }
 
