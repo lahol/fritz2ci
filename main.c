@@ -200,7 +200,7 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
     if (!cmsg) {
         return;
     }
-    if (/*cmsg->msgtype != CALLMSGTYPE_CALL &&*/ cmsg->msgtype != CALLMSGTYPE_RING) {
+    if (cmsg->msgtype != CALLMSGTYPE_CALL && cmsg->msgtype != CALLMSGTYPE_RING) {
         return;
     }
 
@@ -225,7 +225,7 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
         strftime(set.cidsDate, 16, "%d.%m.%Y", &cmsg->datetime);
         backup_data_write(&set);
         strftime(set.cidsDate, 16, "%Y-%m-%d", &cmsg->datetime);
-        cisrv_broadcast_message(CI2ServerMsgMessage, &set, msgid);
+        cisrv_broadcast_message(CIServerMsgMessage, &set, msgid);
 
         rc = lookup_get_caller_data(&set);
         g_mutex_lock(&_db_data_queue_lock);
@@ -245,9 +245,18 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
         g_mutex_unlock(&_db_data_queue_lock);
 
         if (rc == 0) {
-            cisrv_broadcast_message(CI2ServerMsgUpdate, &set, msgid);
+            cisrv_broadcast_message(CIServerMsgUpdate, &set, msgid);
         }
-        cisrv_broadcast_message(CI2ServerMsgComplete, &set, msgid);
+        cisrv_broadcast_message(CIServerMsgComplete, &set, msgid);
+    }
+    else if (cmsg->msgtype == CALLMSGTYPE_CALL) {
+        strftime(set.cidsTime, 16, "%H:%M:%S", &cmsg->datetime);
+        strftime(set.cidsDate, 16, "%Y-%m-%d", &cmsg->datetime);
+        strcpy(set.cidsNumberComplete, cmsg->called_number);
+        strcpy(set.cidsMSN, cmsg->calling_number);
+        msnl_lookup(set.cidsMSN, set.cidsAlias);
+
+        cisrv_broadcast_message(CIServerMsgCall, &set, NULL);
     }
 }
 

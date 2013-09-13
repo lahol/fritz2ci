@@ -447,7 +447,7 @@ void _cisrv_handle_client_message(CIClient *client)
     cinet_msg_free(msg);
 }
 
-gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data, gchar *msgid)
+gint cisrv_broadcast_message(CIServerMsg msgtype, CIDataSet *data, gchar *msgid)
 {
     GSList *tmp;
     CINetMessage cmsg;
@@ -457,8 +457,8 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data, gchar *msgid
     }
 
     CINetMsg *msg = NULL;
-    if (data && (msgtype == CI2ServerMsgMessage || msgtype == CI2ServerMsgUpdate ||
-                msgtype == CI2ServerMsgComplete)) {
+    if (data && (msgtype == CIServerMsgMessage || msgtype == CIServerMsgUpdate ||
+                msgtype == CIServerMsgComplete)) {
         msg = cinet_message_new(CI_NET_MSG_EVENT_RING, NULL, NULL);
         cinet_message_set_value(msg, "completenumber", data->cidsNumberComplete[0] ?
                 data->cidsNumberComplete : NULL);
@@ -481,25 +481,39 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data, gchar *msgid
         if (msgid != NULL)
             cinet_message_set_value(msg, "msgid", msgid);
     }
-    else if (msgtype == CI2ServerMsgDisconnect) {
+    else if (data && msgtype == CIServerMsgCall) {
+        msg = cinet_message_new(CI_NET_MSG_EVENT_CALL, NULL, NULL);
+        cinet_message_set_value(msg, "completenumber", data->cidsNumberComplete[0] ?
+                data->cidsNumberComplete : NULL);
+        cinet_message_set_value(msg, "date", data->cidsDate[0] ? data->cidsDate : NULL);
+        cinet_message_set_value(msg, "time", data->cidsTime[0] ? data->cidsTime : NULL);
+        cinet_message_set_value(msg, "msn", data->cidsMSN[0] ? data->cidsMSN : NULL);
+        cinet_message_set_value(msg, "alias", data->cidsAlias[0] ? data->cidsAlias : NULL);
+    }
+    else if (msgtype == CIServerMsgDisconnect) {
         msg = cinet_message_new(CI_NET_MSG_SHUTDOWN, NULL, NULL);
     }
+    else
+        return 1;
 
     switch (msgtype) {
-        case CI2ServerMsgMessage:
+        case CIServerMsgMessage:
             cmsg.msgCode = 'm';
             cinet_message_set_value(msg, "stage", GINT_TO_POINTER(MultipartStageInit));
             break;
-        case CI2ServerMsgUpdate:
+        case CIServerMsgUpdate:
             cmsg.msgCode = 'u';
             cinet_message_set_value(msg, "stage", GINT_TO_POINTER(MultipartStageUpdate));
             break;
-        case CI2ServerMsgDisconnect:
+        case CIServerMsgDisconnect:
             cmsg.msgCode = 'd';
             break;
-        case CI2ServerMsgComplete:
+        case CIServerMsgComplete:
             cmsg.msgCode = 'c';
             cinet_message_set_value(msg, "stage", GINT_TO_POINTER(MultipartStageComplete));
+            break;
+        case CIServerMsgCall:
+            cmsg.msgCode = '?';
             break;
         default:
             return 1;
@@ -528,7 +542,7 @@ gint cisrv_broadcast_message(CI2ServerMsg msgtype, CIDataSet *data, gchar *msgid
                 bytes_written += rc;
             }
         }
-        else {
+        else if (msgtype != CIServerMsgCall) {
             if (send(((CIClient *)(tmp->data))->sock, &cmsg, sizeof(CINetMessage), 0) < sizeof(CINetMessage)) {
                 ((CIClient *)(tmp->data))->flags |= CISRV_CLIENT_REMOVE;
             }
@@ -566,7 +580,7 @@ gint cisrv_disconnect(void)
             _cisrv_server.state = CISrvStateConnected;
         case CISrvStateConnected:
             log_log("broadcast message\n");
-            cisrv_broadcast_message(CI2ServerMsgDisconnect, NULL, NULL);
+            cisrv_broadcast_message(CIServerMsgDisconnect, NULL, NULL);
             _cisrv_server.state = CISrvStateInitialized;
         case CISrvStateInitialized:
             break;
