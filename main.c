@@ -256,6 +256,9 @@ void handle_fritz_message(CIFritzCallMsg *cmsg)
         strcpy(set.cidsMSN, cmsg->calling_number);
         msnl_lookup(set.cidsMSN, set.cidsAlias);
 
+        log_log("CALL: %s %s \"%s\" \"%s\" \"%s\"\n", set.cidsTime, set.cidsDate,
+                set.cidsNumberComplete, set.cidsMSN, set.cidsAlias);
+
         cisrv_broadcast_message(CIServerMsgCall, &set, NULL);
     }
 }

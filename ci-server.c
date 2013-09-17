@@ -50,7 +50,7 @@ typedef struct _CIServer {
     GMutex clist_lock;
     int fdpipe[2];
     gushort state;
-    GSList *clientlist;
+    GList *clientlist;
 } CIServer;
 
 typedef struct _CINetMessage {
@@ -116,7 +116,7 @@ void *_cisrv_listen_thread_proc(void *pdata)
     int rc;
     int max;
     int newsock;
-    GSList *tmp;
+    GList *tmp;
 
     memset(&addr, 0, sizeof(struct sockaddr_in));
     addr.sin_family = AF_INET;
@@ -148,7 +148,7 @@ void *_cisrv_listen_thread_proc(void *pdata)
             if (((CIClient *)(tmp->data))->sock > max) {
                 max = ((CIClient *)(tmp->data))->sock;
             }
-            tmp = g_slist_next(tmp);
+            tmp = g_list_next(tmp);
         }
         /*    pthread_mutex_unlock(&_cisrv_server.clist_lock);*/
         g_mutex_unlock(&_cisrv_server.clist_lock);
@@ -170,7 +170,7 @@ void *_cisrv_listen_thread_proc(void *pdata)
             if (FD_ISSET(((CIClient *)tmp->data)->sock, &fdSet)) {
                 _cisrv_handle_client_message((CIClient*)tmp->data);
             }
-            tmp = g_slist_next(tmp);
+            tmp = g_list_next(tmp);
         }
         /*    pthread_mutex_unlock(&_cisrv_server.clist_lock);*/
         g_mutex_unlock(&_cisrv_server.clist_lock);
@@ -449,7 +449,7 @@ void _cisrv_handle_client_message(CIClient *client)
 
 gint cisrv_broadcast_message(CIServerMsg msgtype, CIDataSet *data, gchar *msgid)
 {
-    GSList *tmp;
+    GList *tmp;
     CINetMessage cmsg;
     memset(&cmsg, 0, sizeof(CINetMessage));
     if (data) {
@@ -527,8 +527,7 @@ gint cisrv_broadcast_message(CIServerMsg msgtype, CIDataSet *data, gchar *msgid)
     cinet_msg_free(msg);
 
     g_mutex_lock(&_cisrv_server.clist_lock);
-    tmp = _cisrv_server.clientlist;
-    while (tmp) {
+    for (tmp = _cisrv_server.clientlist; tmp != NULL; tmp = g_list_next(tmp)) {
         log_log("broadcast to %p\n", tmp);
         bytes_written = 0;
         if (CI_CHECK_VERSION(((CIClient*)(tmp->data))->version, CI_MAKE_VERSION(3,0,0))) {
@@ -547,7 +546,6 @@ gint cisrv_broadcast_message(CIServerMsg msgtype, CIDataSet *data, gchar *msgid)
                 ((CIClient *)(tmp->data))->flags |= CISRV_CLIENT_REMOVE;
             }
         }
-        tmp = g_slist_next(tmp);
     }
     g_mutex_unlock(&_cisrv_server.clist_lock);
 
@@ -616,24 +614,24 @@ void _cisrv_close_all_clients(void)
     while (_cisrv_server.clientlist) {
        _cisrv_shutdown_sock(((CIClient *)_cisrv_server.clientlist->data)->sock);
         g_free((CIClient *)_cisrv_server.clientlist->data);
-        _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, _cisrv_server.clientlist->data);
+        _cisrv_server.clientlist = g_list_remove(_cisrv_server.clientlist, _cisrv_server.clientlist->data);
     }
     g_mutex_unlock(&_cisrv_server.clist_lock);
 }
 
 void _cisrv_remove_marked_clients(void)
 {
-    GSList *tmp, *next;
+    GList *tmp, *next;
     g_mutex_lock(&_cisrv_server.clist_lock);
     /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
     tmp = _cisrv_server.clientlist;
     while (tmp) {
-        next = g_slist_next(tmp);
+        next = g_list_next(tmp);
         if (((CIClient *)tmp->data)->flags & CISRV_CLIENT_REMOVE) {
             log_log("removing client %d\n", ((CIClient*)tmp->data)->sock);
             _cisrv_shutdown_sock(((CIClient *)tmp->data)->sock);
             g_free((CIClient *)tmp->data);
-            _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, tmp->data);
+            _cisrv_server.clientlist = g_list_remove(_cisrv_server.clientlist, tmp->data);
         }
         tmp = next;
     }
@@ -650,26 +648,24 @@ void _cisrv_add_client(int sock)
     cl->version = CI_MAKE_VERSION(2,0,0);
     /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
     g_mutex_lock(&_cisrv_server.clist_lock);
-    _cisrv_server.clientlist = g_slist_append(_cisrv_server.clientlist, (gpointer)cl);
+    _cisrv_server.clientlist = g_list_append(_cisrv_server.clientlist, (gpointer)cl);
     g_mutex_unlock(&_cisrv_server.clist_lock);
     /*  pthread_mutex_unlock(&_cisrv_server.clist_lock);*/
 }
 
 void _cisrv_remove_client(int sock)
 {
-    GSList *tmp;
+    GList *tmp;
     log_log("cisrv_remove_client\n");
     g_mutex_lock(&_cisrv_server.clist_lock);
     /*  pthread_mutex_lock(&_cisrv_server.clist_lock);*/
-    tmp = _cisrv_server.clientlist;
-    while (tmp) {
+    for (tmp = _cisrv_server.clientlist; tmp != NULL; tmp = g_list_next(tmp)) {
         if (((CIClient *)tmp->data)->sock == sock) {
             close(sock);
             g_free((CIClient *)tmp->data);
-            _cisrv_server.clientlist = g_slist_remove(_cisrv_server.clientlist, tmp->data);
+            _cisrv_server.clientlist = g_list_remove(_cisrv_server.clientlist, tmp->data);
             break;
         }
-        tmp = g_slist_next(tmp);
     }
     g_mutex_unlock(&_cisrv_server.clist_lock);
     /*  pthread_mutex_unlock(&_cisrv_server.clist_lock);*/
