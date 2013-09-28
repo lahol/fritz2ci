@@ -12,6 +12,7 @@
 
 in_addr_t netutil_get_ip_address(const gchar *hostname);
 int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname);
+char *netutil_get_remote_address(int sock);
 
 int netutil_init_fd_set(fd_set *set, int nfd, ...);
 void netutil_close_fd(int *fd);

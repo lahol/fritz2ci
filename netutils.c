@@ -69,6 +69,22 @@ int netutil_get_interface_from_sock(int sock, int *ifindex, char *ifname)
     return 0;
 }
 
+char *netutil_get_remote_address(int sock)
+{
+    socklen_t len;
+    struct sockaddr_storage addr;
+    len = sizeof(addr);
+
+    if (getpeername(sock, (struct sockaddr *)&addr, &len) != 0)
+        return NULL;
+    if (addr.ss_family == AF_INET)
+        return inet_ntoa(((struct sockaddr_in *)&addr)->sin_addr);
+/*    else if (addr.ss_family == AF_INET6)
+        return inet_ntoa(((struct sockaddr_in6 *)&addr)->sin6_addr);*/
+
+    return NULL;
+}
+
 int netutil_init_fd_set(fd_set *set, int nfd, ...)
 {
     va_list ap;
