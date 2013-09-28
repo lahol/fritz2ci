@@ -642,7 +642,7 @@ void _cisrv_remove_marked_clients(void)
 void _cisrv_add_client(int sock)
 {
     CIClient *cl = g_malloc0(sizeof(CIClient));
-    log_log("cisrv_add_client: %s\n", netutil_get_remote_address(sock));
+    log_log("cisrv_add_client: %d %s\n", sock, netutil_get_remote_address(sock));
     cl->sock = sock;
     /* assume that client version is at least 2.0.0 until we receive a version message */
     cl->version = CI_MAKE_VERSION(2,0,0);
