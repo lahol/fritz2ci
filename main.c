@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     log_log("loaded configuration\n");
 
     if (cfg->daemon) {
-        daemon_pid = start_daemon(cfg->pid_file);
+        daemon_pid = start_daemon(argv[0], cfg->pid_file);
         if (daemon_pid == -1) {
             log_log("Could not start daemon\n");
             return 1;

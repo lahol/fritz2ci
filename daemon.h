@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-pid_t start_daemon(char *pidfile);
+pid_t start_daemon(const char *comm, char *pidfile);
 int stop_daemon(void);
 
 #endif
