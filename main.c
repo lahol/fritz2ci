@@ -103,11 +103,6 @@ int main(int argc, char **argv)
     else
         log_log("loaded msn lookup file\n");
 
-    /*connect*/
-    if (fritz_connect(NULL) == 0) {
-        log_log("connected fritz\n");
-    }
-
     if (cisrv_run(cfg->ci2_port) != 0) {
         log_log("call shutdown after failed cisrv_run\n");
         _shutdown();
@@ -115,7 +110,7 @@ int main(int argc, char **argv)
     }
     log_log("started ci srv\n");
 
-    if (fritz_listen(handle_fritz_message) != 0) {
+    if (fritz_startup(handle_fritz_message) != 0) {
         log_log("failed to listen (fritz)\n");
         return 1;
     }
@@ -148,7 +143,7 @@ int main(int argc, char **argv)
 void _shutdown(void)
 {
     ci_free_area_codes();
-    fritz_disconnect();
+    fritz_shutdown();
     cisrv_disconnect();
 
     msnl_cleanup();
@@ -189,7 +184,7 @@ void generate_msg_id(gchar *id)
     tm = localtime(&tv.tv_sec);
 
     strftime(id, 16, "%y%m%d%H%M%S", tm);
-    snprintf(&id[12], 4, "%03d", (int)(((long)tv.tv_usec)/1000)%1000);
+    snprintf(&id[12], 4, "%03d", (unsigned int)(((unsigned long)tv.tv_usec)/1000)%1000);
 }
 
 void handle_fritz_message(CIFritzCallMsg *cmsg)

@@ -35,15 +35,16 @@ typedef struct _CIFritzServer {
 
 GMainContext *_main_context = NULL;
 
-void _fritz_parse_date(gchar *buffer, struct tm *dt);
-gint _fritz_parse_notification(const gchar *notify, CIFritzCallMsg *cmsg);
-void *_fritz_listen_thread_proc(void *pdata);
+static gint _fritz_parse_notification(const gchar *notify, CIFritzCallMsg *cmsg);
+static void *_fritz_listen_thread_proc(void *pdata);
 
 /* callbacks for netlink messages */
-void _fritz_handle_net_up(int ifindex, char *ifname, CIFritzServer *srv);
-void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv);
+static void _fritz_handle_net_up(int ifindex, char *ifname, CIFritzServer *srv);
+static void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv);
 
-gboolean _fritz_try_reconnect(CIFritzServer *srv);
+static gint _fritz_connect(gboolean *connected);
+static void _fritz_try_connect(void);
+static gboolean _fritz_try_reconnect(CIFritzServer *srv);
 
 CIFritzServer _cifritz_server;
 
@@ -73,7 +74,8 @@ gint fritz_init(gchar *host, gushort port)
     return 0;
 }
 
-gint fritz_connect(gboolean *connected)
+static
+gint _fritz_connect(gboolean *connected)
 {
     char ifname[IF_NAMESIZE];
 
@@ -111,9 +113,11 @@ gint fritz_connect(gboolean *connected)
     return 0;
 }
 
-gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *))
+gint fritz_startup(void (*fritz_listen_cb)(CIFritzCallMsg *))
 {
     _cifritz_server.fritz_listen_cb = fritz_listen_cb;
+
+    _fritz_try_connect();
 
     if ((_cifritz_server.thread = g_thread_new("Fritz", (GThreadFunc)_fritz_listen_thread_proc, NULL)) == NULL) {
         return 4;
@@ -122,10 +126,10 @@ gint fritz_listen(void (*fritz_listen_cb)(CIFritzCallMsg *))
     return 0;
 }
 
-gint fritz_disconnect(void)
+gint fritz_shutdown(void)
 {
     size_t bytes;
-    log_log("fritz: disconnect\n");
+    log_log("fritz: shutdown\n");
     if (_cifritz_server.state & CIFritzServerStateListening) {
         log_log("write to pipe\n");
         bytes = write(_cifritz_server.fdpipe[1], "disconnect", 10);
@@ -147,7 +151,7 @@ gint fritz_disconnect(void)
 gint fritz_cleanup(void)
 {
     if (_cifritz_server.state >= CIFritzServerStateConnected) {
-        fritz_disconnect();
+        fritz_shutdown();
     }
     netutil_close_fd(&_cifritz_server.fdpipe[0]);
     netutil_close_fd(&_cifritz_server.fdpipe[1]);
@@ -157,10 +161,11 @@ gint fritz_cleanup(void)
     return 0;
 }
 
+static
 gboolean _fritz_try_reconnect(CIFritzServer *srv)
 {
     gboolean connected;
-    fritz_connect(&connected);
+    _fritz_connect(&connected);
 
     if (srv && connected) {
         write(srv->fdpipe[1], "add sock", 8);
@@ -169,19 +174,27 @@ gboolean _fritz_try_reconnect(CIFritzServer *srv)
     return !connected;
 }
 
-void _fritz_handle_net_up(int ifindex, char *ifname, CIFritzServer *srv)
+static
+void _fritz_try_connect(void)
 {
-    log_log("fritz: handle net up\n");
-    if (srv->state & CIFritzServerStateConnected)
+    if (_cifritz_server.state & CIFritzServerStateConnected)
         return;
     gboolean connected;
-    fritz_connect(&connected);
+    _fritz_connect(&connected);
 
     if (!connected) {
-        g_timeout_add_seconds(10, (GSourceFunc)_fritz_try_reconnect, (gpointer)srv);
+        g_timeout_add_seconds(10, (GSourceFunc)_fritz_try_reconnect, (gpointer)&_cifritz_server);
     }
 }
 
+static
+void _fritz_handle_net_up(int ifindex, char *ifname, CIFritzServer *srv)
+{
+    log_log("fritz: handle net up\n");
+    _fritz_try_connect();
+}
+
+static
 void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv)
 {
     log_log("fritz: handle net down: %s (%d)\n", ifname, ifindex);
@@ -194,16 +207,10 @@ void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv)
     }
 }
 
+static
 void *_fritz_listen_thread_proc(void *pdata)
 {
     log_log("fritz: start listening: %sconnected\n", _cifritz_server.state & CIFritzServerStateConnected ? "" : "not ");
-
-    /* TODO Rename this or disentangle this a bit. If we try to reconnect here anyway,
-     * we may omit the explicit call to fritz_connect. Then listen becomes a startup
-     * and disconnect a shutdown.
-     */
-    if (!(_cifritz_server.state & CIFritzServerStateConnected))
-        _fritz_handle_net_up(0, NULL, &_cifritz_server);
 
     _cifritz_server.state |= CIFritzServerStateListening;
     gchar buffer[FRITZ_BUFFER_SIZE];
@@ -277,6 +284,7 @@ void *_fritz_listen_thread_proc(void *pdata)
  * date: %d.%m.%y %H:%M:%S
  * duration: seconds
  */
+static
 gint _fritz_parse_notification(const gchar *notify, CIFritzCallMsg *cmsg)
 {
     if (notify == NULL)
@@ -341,4 +349,3 @@ out:
     g_strfreev(fields);
     return 3;
 }
-
