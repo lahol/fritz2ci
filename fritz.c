@@ -197,6 +197,14 @@ void _fritz_handle_net_down(int ifindex, char *ifname, CIFritzServer *srv)
 void *_fritz_listen_thread_proc(void *pdata)
 {
     log_log("fritz: start listening: %sconnected\n", _cifritz_server.state & CIFritzServerStateConnected ? "" : "not ");
+
+    /* TODO Rename this or disentangle this a bit. If we try to reconnect here anyway,
+     * we may omit the explicit call to fritz_connect. Then listen becomes a startup
+     * and disconnect a shutdown.
+     */
+    if (!(_cifritz_server.state & CIFritzServerStateConnected))
+        _fritz_handle_net_up(0, NULL, &_cifritz_server);
+
     _cifritz_server.state |= CIFritzServerStateListening;
     gchar buffer[FRITZ_BUFFER_SIZE];
     int bytes;
